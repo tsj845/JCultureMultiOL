@@ -11,6 +11,7 @@ import java.nio.channels.Pipe.SinkChannel;
 import java.nio.channels.Pipe.SourceChannel;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 
 import JCRoot.game.Color;
 import JCRoot.game.Game;
@@ -27,6 +28,7 @@ public class Host {
     private static Game game;
     // private static LinkedBlockingDeque<Integer> comms = new LinkedBlockingDeque<>();
     private static Thread servingThread = null;
+    private static CountDownLatch countdown = null;
     private static int getRestrictNum(String prompt, int lo, int hi) {
         while (true) {
             System.out.print(prompt);
@@ -97,7 +99,7 @@ public class Host {
             }
         }
     }
-    private static void cli() throws IOException {
+    private static void cli() throws IOException, InterruptedException {
         while (true) {
             String line = sc.nextLine();
             if (line.equalsIgnoreCase("stop")) {
@@ -112,9 +114,13 @@ public class Host {
                 itch = getRestrictNum("Enter height: ", 1, 26);
                 itcp = players.size();
                 game = new Game(itcw, itch, itcp);
+                System.out.println(itcp);
+                countdown = new CountDownLatch(itcp+1);
                 for (Player p : players.values()) {
                     p.pipe.sink().write(ByteBuffer.wrap(new byte[]{1}));
                 }
+                countdown.countDown();
+                countdown.await();
                 runloop();
             }
             if (line.equalsIgnoreCase("list")) {
@@ -154,7 +160,7 @@ public class Host {
             return true;
         }
     }
-    private static void serve(Socket sock) throws IOException {
+    private static void serve(Socket sock) throws IOException, InterruptedException {
         InputStream sIn = sock.getInputStream();
         OutputStream sOut = sock.getOutputStream();
         int conncode = sIn.read();
@@ -199,7 +205,7 @@ public class Host {
             // sOut.write(cc.blue);
         }
     }
-    private static void preloop(Socket sock, Player player) throws IOException {
+    private static void preloop(Socket sock, Player player) throws IOException, InterruptedException {
         OutputStream sOut = sock.getOutputStream();
         synchronized(players) {
             for (Player p : players.values()) {
@@ -221,6 +227,7 @@ public class Host {
         while (true) {
             byte[] bb = new byte[1];
             player.pipe.source().read(ByteBuffer.wrap(bb));
+            // System.out.printf("PLAYER %d COMM %d\n", player.id, bb[0]);
             int pc = bb[0];
             if (pc == 0) {
                 sOut.write(0);
@@ -232,6 +239,8 @@ public class Host {
                 sOut.write(itcw);
                 sOut.write(itch);
                 sOut.write(itcp);
+                countdown.countDown();
+                countdown.await();
                 gameloop(sock, player);
             }
         }
