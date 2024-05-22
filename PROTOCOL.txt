@@ -31,6 +31,10 @@ GET SERVER DATA {
 
 HOST HANDSHAKE {
     C>H: [0x44] // start communication
+    IF [REFUSED] {
+        H>C: 0x02
+        TERMINATE SOCKET
+    }
     IF [HOST has PASSWORD] {
         H>C: 0x01
         C>H: u1 PLEN // length of password
@@ -54,7 +58,7 @@ HOST HANDSHAKE {
     C>H: <NLEN> // name buffer
     H>C: u1 PLAYER // player id (given in the order in which players joined, defines turn order)
     H>C: u1 TEAM // team id for this client
-    H>C: [u1, u1, u1] COLOR // player color
+    //H>C: [u1, u1, u1] COLOR // player color
     goto PREGAME LOOP
 }
 
@@ -69,7 +73,7 @@ PREGAME LOOP {
             // HOST is starting the game
             H>C: u1 W {RESTRICT 1 <= W <= 26} // board width
             H>C: u1 H {RESTRICT 1 <= H <= 26} // board height
-            H>C: u1 P {RESTRICT 2 <= P} // player count
+            H>C: u1 P {RESTRICT 2 <= P <= 6} // player count
             goto GAME LOOP
         }
         ON [0x02] {
@@ -78,13 +82,15 @@ PREGAME LOOP {
             H>C: <CLEN> // other name buffer
             H>C: u1 OPLAYER // other player's id
             H>C: u1 OTEAM // other player's team
-            H>C: [u1, u1, u1] OCOLOR // other player's color
+            //H>C: [u1, u1, u1] OCOLOR // other player's color
         }
     }
     goto PREGAME LOOP
 }
 
 GAME LOOP {
+    H>P: 0x01 // signal it's that player's turn
+    H>!P: 0x00 // signal to others that it's not their turn
     P>H: [u1, u1] POSITION
     IF [VALID POSITION] {
         H>P: 0x01
@@ -93,7 +99,8 @@ GAME LOOP {
         RETRY
     }
     FOR ALL CLIENTS {
-        H>C: [u1, u1]
+        H>C: [u1, u1] POSITION
+        H>C: u1 TEAM // team of player that just went
     }
     IF [PLAYER WON] {
         goto PREGAME LOOP
