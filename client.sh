@@ -1,0 +1,1 @@
+javac JCRoot/Client.java && java JCRoot/Client "$@"

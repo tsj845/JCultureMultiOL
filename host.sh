@@ -1,0 +1,1 @@
+javac JCRoot/Host.java && java JCRoot/Host "$@"

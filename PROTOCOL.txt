@@ -1,0 +1,101 @@
+this document defines the protocol for interfacing with session hosts as a client and the inverse
+
+TYPES {
+    u[X] - unsigned integer of [X] bytes
+    s[X] - signed integer of [X] bytes
+    byte - one byte signed integer
+    short - two byte signed integer
+    int - four byte signed integer
+    long - eight byte singed integer
+    ubyte - one byte unsigned integer
+    ushort - two byte unsigned integer
+    uint - four byte unsigned integer
+    ulong - eight byte unsigned integer
+    bool - one bit boolean
+}
+
+PARTIES {
+    (defines the parties at each end of communication)
+    H -> HOST
+    C -> CLIENT
+    P -> CURRENT PLAYER [can be any of the clients or the host]
+}
+
+GET SERVER DATA {
+    C>H: [0x66] // start communication
+    H>C: bool PASS // if the host requires a password
+    H>C: u1 HLEN // host name length
+    H>C: <HLEN> // host name buffer
+    TERMINATE SOCKET
+}
+
+HOST HANDSHAKE {
+    C>H: [0x44] // start communication
+    IF [HOST has PASSWORD] {
+        H>C: 0x01
+        C>H: u1 PLEN // length of password
+        C>H: <PLEN> // password buffer
+        IF [PASSWORD is VALID] {
+            H>C: 0x01
+        } else {
+            H>C: 0x00
+            IF [CLIENT TRY AGAIN] {
+                C>H: 0x01
+                RETRY
+            } else {
+                C>H: 0x00
+                TERMINATE SOCKET
+            }
+        }
+    } else {
+        H>C: 0x00
+    }
+    C>H: u1 NLEN // length of name
+    C>H: <NLEN> // name buffer
+    H>C: u1 PLAYER // player id (given in the order in which players joined, defines turn order)
+    H>C: u1 TEAM // team id for this client
+    H>C: [u1, u1, u1] COLOR // player color
+    goto PREGAME LOOP
+}
+
+PREGAME LOOP {
+    H>C: byte DCODE // code for what kind of data is being sent
+    SWITCH [DCODE] {
+        ON [0x00] {
+            // HOST is ending the session
+            TERMINATE SOCKET
+        }
+        ON [0x01] {
+            // HOST is starting the game
+            H>C: u1 W {RESTRICT 1 <= W <= 26} // board width
+            H>C: u1 H {RESTRICT 1 <= H <= 26} // board height
+            H>C: u1 P {RESTRICT 2 <= P} // player count
+            goto GAME LOOP
+        }
+        ON [0x02] {
+            // data on another CLIENT in the session
+            H>C: u1 CLEN // length of other client's name
+            H>C: <CLEN> // other name buffer
+            H>C: u1 OPLAYER // other player's id
+            H>C: u1 OTEAM // other player's team
+            H>C: [u1, u1, u1] OCOLOR // other player's color
+        }
+    }
+    goto PREGAME LOOP
+}
+
+GAME LOOP {
+    P>H: [u1, u1] POSITION
+    IF [VALID POSITION] {
+        H>P: 0x01
+    } else {
+        H>P: 0x00
+        RETRY
+    }
+    FOR ALL CLIENTS {
+        H>C: [u1, u1]
+    }
+    IF [PLAYER WON] {
+        goto PREGAME LOOP
+    }
+}

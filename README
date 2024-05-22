@@ -1,0 +1,7 @@
+This project is designed to emulate a modified version of the game Culture, no longer available
+on current iOS App Stores
+
+The modifications are as follows:
+- variable N x M board sizes (settable at start)
+- N players (settable at start, the original only allowed two)
+- online functionality (the original was strictly local)
