@@ -3,6 +3,7 @@ package JCRoot;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -336,6 +337,10 @@ public class Host {
         }
     }
     public static void main(String[] args) throws Exception {
+        Socket socket = new Socket();
+        socket.connect(new InetSocketAddress("google.com", 80));
+        System.out.println(socket.getLocalAddress());
+        socket.close();
         System.out.print("Enter port: ");
         int port = Integer.parseInt(sc.nextLine());
         System.out.print("Enter name: ");
