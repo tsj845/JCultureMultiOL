@@ -84,6 +84,11 @@ PREGAME LOOP {
             H>C: u1 OTEAM // other player's team
             //H>C: [u1, u1, u1] OCOLOR // other player's color
         }
+        ON [0x03] {
+            // change team
+            H>C: u1 PID // id of player changing teams
+            H>C: u1 TID // new team id [must be an existing team]
+        }
     }
     goto PREGAME LOOP
 }

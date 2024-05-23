@@ -13,7 +13,7 @@ import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 
-import JCRoot.game.Color;
+// import JCRoot.game.Color;
 import JCRoot.game.Game;
 import JCRoot.game.Team;
 import JCRoot.game.Teams;
@@ -24,7 +24,7 @@ public class Host {
     private static String hostname = "";
     private static String hostpass = "";
     private static Scanner sc = new Scanner(System.in);
-    private static TreeMap<Integer, Player> players = new TreeMap<>();
+    public static TreeMap<Integer, Player> players = new TreeMap<>();
     private static Game game;
     // private static LinkedBlockingDeque<Integer> comms = new LinkedBlockingDeque<>();
     private static Thread servingThread = null;
@@ -66,6 +66,8 @@ public class Host {
                     pOut.write(1);
                     break;
                 } else {
+                    System.out.println(player.team.id);
+                    System.out.println(game.board.board[y][x].team);
                     pOut.write(0);
                 }
             }
@@ -94,7 +96,7 @@ public class Host {
                     SinkChannel snk = p.pipe.sink();
                     snk.write(ByteBuffer.wrap(new byte[]{3}));
                 }
-                System.out.printf("Team %s won!\n", Teams.teams.get(game.board.checkWinner()));
+                System.out.printf("Team %s won!\n", Teams.teams[game.board.checkWinner()]);
                 return;
             }
         }
@@ -124,10 +126,50 @@ public class Host {
                 runloop();
             }
             if (line.equalsIgnoreCase("list")) {
-                for (Team team : Teams.teams.values()) {
+                for (Team team : Teams.teams) {
                     System.out.print(team.id + ": ");
                     System.out.println(team);
+                    for (Player p : players.values()) {
+                        if (p.team.id == team.id) {
+                            System.out.println("  " + p.name + "(" + p.id + ")");
+                        }
+                    }
                 }
+            }
+            if (line.equalsIgnoreCase("setteam")) {
+                int pid;
+                while (true) {
+                    try {
+                        pid = Integer.parseInt(sc.nextLine());
+                        if (pid < 0 || pid >= players.size()) {
+                            System.out.println("out of range");
+                            continue;
+                        }
+                        break;
+                    } catch (Exception E) {
+                        System.out.println("malformed");
+                    }
+                }
+                int tid;
+                while (true) {
+                    try {
+                        tid = Integer.parseInt(sc.nextLine());
+                        if (tid < 0 || tid > 5) {
+                            System.out.println("out of range");
+                            continue;
+                        }
+                        break;
+                    } catch (Exception E) {
+                        System.out.println("malformed");
+                    }
+                }
+                players.get(pid).team = Teams.teams[tid];
+                countdown = new CountDownLatch(players.size());
+                for (Player p : players.values()) {
+                    p.pipe.sink().write(ByteBuffer.wrap(new byte[]{2, (byte)pid, (byte)tid}));
+                }
+                countdown.countDown();
+                countdown.await();
             }
         }
     }
@@ -172,13 +214,13 @@ public class Host {
             return;
         }
         if (conncode == 0x44) {
-            synchronized(Teams.teams) {
-                if (Teams.teams.size() > 5) {
-                    sOut.write(2);
-                    sock.close();
-                    return;
-                }
-            }
+            // synchronized(Teams.teams) {
+            //     if (Teams.teams.size() > 5) {
+            //         sOut.write(2);
+            //         sock.close();
+            //         return;
+            //     }
+            // }
             if (usingPass) {
                 sOut.write(1);
                 if (!checkPassword(sock)) {
@@ -189,16 +231,16 @@ public class Host {
                 sOut.write(0);
             }
             String cliname = new String(sIn.readNBytes(sIn.read()));
-            Color cc;
-            int id;
-            synchronized(Teams.teams) {
-                id = Teams.teams.size();
-                cc = new Color(id);
-                Teams.teams.put(id, new Team(id, cc, cliname));
-            }
+            // Color cc;
+            int id = players.size();
+            // synchronized(Teams.teams) {
+            //     id = Teams.teams.size();
+            //     cc = new Color(id);
+            //     Teams.teams.put(id, new Team(id, cc, cliname));
+            // }
             sOut.write(id);
             sOut.write(id);
-            Player p = new Player(id, Teams.teams.get(id), sock, Pipe.open());
+            Player p = new Player(id, Teams.teams[id], cliname, sock, Pipe.open());
             preloop(sock, p);
             // sOut.write(cc.red);
             // sOut.write(cc.green);
@@ -243,9 +285,18 @@ public class Host {
                 countdown.await();
                 gameloop(sock, player);
             }
+            if (pc == 2) {
+                byte[] buf = new byte[2];
+                player.pipe.source().read(ByteBuffer.wrap(buf));
+                sOut.write(3);
+                sOut.write(buf[0]);
+                sOut.write(buf[1]);
+                countdown.countDown();
+                countdown.await();
+            }
         }
     }
-    private static void gameloop(Socket sock, Player player) throws IOException {
+    private static void gameloop(Socket sock, Player player) throws IOException, InterruptedException {
         InputStream sIn = sock.getInputStream();
         OutputStream sOut = sock.getOutputStream();
         SourceChannel src = player.pipe.source();
@@ -267,6 +318,8 @@ public class Host {
                         sOut.write(1);
                         break;
                     } else {
+                        System.out.println(player.team.id);
+                        System.out.println(game.board.board[y][x].team);
                         sOut.write(0);
                     }
                 }

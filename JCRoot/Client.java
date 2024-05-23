@@ -10,7 +10,7 @@ import java.util.TreeMap;
 
 import JCRoot.game.Board;
 import JCRoot.game.Color;
-import JCRoot.game.Team;
+// import JCRoot.game.Team;
 import JCRoot.game.Teams;
 
 public class Client {
@@ -76,9 +76,9 @@ public class Client {
             sOut.write(clname.getBytes());
             pnum = sIn.read();
             int teamid = sIn.read();
-            Team team = new Team(teamid, new Color(teamid), clname);
-            Teams.teams.put(teamid, team);
-            players.put(pnum, new Player(pnum, team));
+            // Team team = new Team(teamid, new Color(teamid), clname);
+            // Teams.teams.put(teamid, team);
+            players.put(pnum, new Player(pnum, Teams.teams[teamid], clname));
             preloop(sock);
         } catch (Exception E) {
             E.printStackTrace();
@@ -105,9 +105,14 @@ public class Client {
                 String otname = new String(sIn.readNBytes(sIn.read()));
                 int pid = sIn.read();
                 int tid = sIn.read();
-                Team team = new Team(tid, new Color(tid), otname);
-                Teams.teams.put(tid, team);
-                players.put(pid, new Player(pid, team));
+                // Team team = new Team(tid, new Color(tid), otname);
+                // Teams.teams.put(tid, team);
+                players.put(pid, new Player(pid, Teams.teams[tid], otname));
+            }
+            if (commcode == 3) {
+                int pid = sIn.read();
+                int tid = sIn.read();
+                players.get(pid).team = Teams.teams[tid];
             }
         }
     }
@@ -117,7 +122,7 @@ public class Client {
         while (true) {
             System.out.println(board);
             if (board.checkWinner() != -1) {
-                System.out.printf("Team %s has won!\n", Teams.teams.get(board.checkWinner()));
+                System.out.printf("Team %s has won!\n", Teams.teams[board.checkWinner()]);
                 return;
             }
             int ccode = sIn.read();
@@ -125,7 +130,7 @@ public class Client {
                 int row;
                 int col;
                 while (true) {
-                    System.out.println("Enter Move:");
+                    System.out.printf("%sEnter Move:%s\n", players.get(pnum).team.color, Color.DEFAULT);
                     String l = sc.nextLine().toUpperCase();
                     if (l.length() == 0) {
                         System.out.println("malformed");
