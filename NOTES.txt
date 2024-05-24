@@ -19,3 +19,10 @@ GROUNDWORK:
 MSG: "bug fixes"
 FIXES:
 - error messages no longer erroneously displayed
+
+05/24/2024 -- 19:15
+MSG: "board ratio"
+IMPROVEMENTS:
+- made board aspect ratio match that of terminal font
+  this ensures that boards do not appear stretched along
+  the vertical axis

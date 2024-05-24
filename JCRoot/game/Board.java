@@ -84,21 +84,26 @@ public class Board {
     public String toString() {
         String f = "    ";
         for (int i = 0; i < w; i ++) {
-            f += String.format(" %s ", alpha[i]);
+            f += String.format("  %s ", alpha[i]);
         }
         f += "\n\n";
         for (int y = 0; y < h; y ++) {
-            f += String.format(" %2d ", (y+1));
+            f += String.format(" %2d  ", (y+1));
             for (int x = 0; x < w; x ++) {
-                f += String.format(" %s%s%s ", new Color(board[y][x].team), charset[board[y][x].value], gray);
+                f += String.format(" %s%s%s  ", new Color(board[y][x].team), charset[board[y][x].value], gray);
             }
             f += Color.DEFAULT;
+            f += String.format(" %d ", (y+1));
             f += "\n\n";
         }
-        return f.substring(0, f.length()-2);
+        f += "    ";
+        for (int i = 0; i < w; i ++) {
+            f += String.format("  %s ", alpha[i]);
+        }
+        return f;
     }
     public static void main(String[] args) {
-        Board b = new Board(10, 10, 3);
+        Board b = new Board(15, 15, 3);
         Scanner sc = new Scanner(System.in);
         while (b.checkWinner() == -1) {
             System.out.println(b);
