@@ -142,7 +142,7 @@ public class Host {
                     SinkChannel snk = p.pipe.sink();
                     snk.write(ByteBuffer.wrap(new byte[]{3}));
                 }
-                System.out.printf("Team %s won!\n", Teams.teams[game.board.checkWinner()]);
+                System.out.printf("Team %s%s won!\n", Teams.teams[game.board.checkWinner()], Color.DEFAULT);
                 return;
             }
         }
@@ -164,7 +164,8 @@ public class Host {
         if (line.equalsIgnoreCase("list")) {
             for (Team team : Teams.teams) {
                 System.out.print(team.id + ": ");
-                System.out.println(team);
+                System.out.print(team);
+                System.out.println(Color.DEFAULT);
                 for (Player p : players.values()) {
                     if (p.team.id == team.id) {
                         System.out.println("  " + p.name + "(" + p.id + ")");
@@ -511,6 +512,7 @@ public class Host {
         throw new IllegalStateException();
     }
     public static void main(String[] args) throws Exception {
+        Color.start();
         Socket socket = new Socket();
         socket.connect(new InetSocketAddress("google.com", 80));
         System.out.println(socket.getLocalAddress());

@@ -27,7 +27,8 @@ function hueToRgb(p, q, t) {
  */
 
 public class Color {
-    public static final String DEFAULT = "\u001b[39m";
+    public static final String DEFAULT = "\u001b[38;5;7m\u001b[48;5;0m";
+    public static final String TERMDEF = "\u001b[0m";
     // public final int red, green, blue;
     public final int n;
     // private double hueToRgb(double h) {
@@ -40,6 +41,10 @@ public class Color {
     //     if (h < (2.0d/3.0d)) return 4.0d - (h * 6.0d);
     //     return 0.0d;
     // }
+    public static void start() {
+        Runtime.getRuntime().addShutdownHook(new Thread(){public void run(){System.out.println(Color.TERMDEF);}});
+        System.out.print(DEFAULT);
+    }
     public Color() {
         // double h = 0.25315662692529306;
         // // double h = Math.random();

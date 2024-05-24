@@ -103,6 +103,7 @@ public class Board {
         return f;
     }
     public static void main(String[] args) {
+        Color.start();
         Board b = new Board(15, 15, 3);
         Scanner sc = new Scanner(System.in);
         while (b.checkWinner() == -1) {

@@ -28,3 +28,8 @@ IMPROVEMENTS:
   this ensures that boards do not appear stretched along
   the vertical axis
 - made board have row/column ticks along all sides
+
+05/24/2024 -- 19:33
+MSG: "colors"
+IMPROVEMENTS:
+- made colors uniform across different terminals

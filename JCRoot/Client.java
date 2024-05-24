@@ -202,7 +202,7 @@ public class Client {
         while (true) {
             System.out.println(board);
             if (board.checkWinner() != -2) {
-                System.out.printf("Team %s has won!\n", Teams.teams[board.checkWinner()]);
+                System.out.printf("Team %s%s has won!\n", Teams.teams[board.checkWinner()], Color.DEFAULT);
                 return;
             }
             int ccode = read(sIn);
@@ -257,6 +257,7 @@ public class Client {
         throw new IllegalStateException();
     }
     public static void main(String[] args) throws Exception {
+        Color.start();
         start(InetAddress.getByName(args[0]), Integer.parseInt(args[1]));
     }
 }
