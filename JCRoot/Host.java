@@ -13,6 +13,8 @@ import java.nio.channels.Pipe.SourceChannel;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 // import JCRoot.game.Color;
 import JCRoot.game.Game;
@@ -26,10 +28,13 @@ public class Host {
     private static String hostpass = "";
     private static Scanner sc = new Scanner(System.in);
     public static TreeMap<Integer, Player> players = new TreeMap<>();
+    public static TreeMap<Integer, Connection> connections = new TreeMap<>();
     private static Game game;
     // private static LinkedBlockingDeque<Integer> comms = new LinkedBlockingDeque<>();
     private static Thread servingThread = null;
     private static CountDownLatch countdown = null;
+    private static final Object SID_LOCK = new Object();
+    private static volatile int CSID = 0;
     private static int getRestrictNum(String prompt, int lo, int hi) {
         while (true) {
             System.out.print(prompt);
@@ -47,7 +52,7 @@ public class Host {
         while (true) {
             for (Player p : players.values()) {
                 // SinkChannel snk = p.pipe.sink();
-                OutputStream pOut = p.sock.getOutputStream();
+                OutputStream pOut = p.conn.s1O;
                 if (p.id == game.cplayer) {
                     pOut.write(1);
                     // snk.write(ByteBuffer.wrap(new byte[]{1}));
@@ -57,8 +62,8 @@ public class Host {
                 }
             }
             Player player = players.get(game.cplayer);
-            InputStream pIn = player.sock.getInputStream();
-            OutputStream pOut = player.sock.getOutputStream();
+            InputStream pIn = player.conn.s1I;
+            OutputStream pOut = player.conn.s1O;
             int x, y;
             while (true) {
                 x = pIn.read();
@@ -87,7 +92,7 @@ public class Host {
                 // SinkChannel snk = p.pipe.sink();
                 // snk.write(ByteBuffer.wrap(new byte[]{2}));
                 // snk.write(ByteBuffer.wrap(buf2));
-                OutputStream sOut = p.sock.getOutputStream();
+                OutputStream sOut = p.conn.s1O;
                 sOut.write(x);
                 sOut.write(y);
                 sOut.write(player.team.id);
@@ -203,7 +208,7 @@ public class Host {
             return true;
         }
     }
-    private static void serve(Socket sock) throws IOException, InterruptedException {
+    private static void serve(Socket sock) throws Exception {
         InputStream sIn = sock.getInputStream();
         OutputStream sOut = sock.getOutputStream();
         int conncode = sIn.read();
@@ -214,6 +219,20 @@ public class Host {
             sock.close();
             return;
         }
+        if (conncode == 0x22) {
+            int gsid = (sIn.read()<<8) | sIn.read();
+            System.out.println(gsid);
+            if (connections.containsKey(gsid)) {
+                Connection conn = connections.get(gsid);
+                conn.s2(sock);
+                sOut.write(1);
+                conn.cf.complete(true);
+            } else {
+                sOut.write(0);
+                sock.close();
+            }
+            return;
+        }
         if (conncode == 0x44) {
             // synchronized(Teams.teams) {
             //     if (Teams.teams.size() > 5) {
@@ -222,6 +241,25 @@ public class Host {
             //         return;
             //     }
             // }
+            sOut.write(0);
+            int sid;
+            synchronized(SID_LOCK) {
+                sid = CSID++;
+            }
+            System.out.println(sid);
+            Connection conn = new Connection(sid, sock, null);
+            connections.put(sid, conn);
+            sOut.write(sid >> 8);
+            sOut.write(sid & 0xff);
+            sOut.flush();
+            System.out.println("SID WRITTEN");
+            try {
+                conn.cf.get(5, TimeUnit.SECONDS);
+            } catch (TimeoutException T) {
+                sock.close();
+                connections.remove(sid);
+                return;
+            }
             if (usingPass) {
                 sOut.write(1);
                 if (!checkPassword(sock)) {
@@ -231,7 +269,9 @@ public class Host {
             } else {
                 sOut.write(0);
             }
-            String cliname = new String(sIn.readNBytes(sIn.read()));
+            byte[] bb = new byte[sIn.read()];
+            sIn.read(bb);
+            String cliname = new String(bb);
             // Color cc;
             int id = players.size();
             // synchronized(Teams.teams) {
@@ -241,7 +281,7 @@ public class Host {
             // }
             sOut.write(id);
             sOut.write(id);
-            Player p = new Player(id, Teams.teams[id], cliname, sock, Pipe.open());
+            Player p = new Player(id, Teams.teams[id], cliname, conn, Pipe.open());
             preloop(sock, p);
             // sOut.write(cc.red);
             // sOut.write(cc.green);
@@ -252,7 +292,7 @@ public class Host {
         OutputStream sOut = sock.getOutputStream();
         synchronized(players) {
             for (Player p : players.values()) {
-                Socket s = p.sock;
+                Socket s = p.conn.s1;
                 OutputStream pOut = s.getOutputStream();
                 pOut.write(0x02);
                 pOut.write(player.team.name.length());

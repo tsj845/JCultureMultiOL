@@ -85,7 +85,7 @@ public class Board {
         }
         f += "\n\n";
         for (int y = 0; y < h; y ++) {
-            f += String.format(" % 2d ", (y+1));
+            f += String.format(" %2d ", (y+1));
             for (int x = 0; x < w; x ++) {
                 f += String.format(" %s%s%s ", new Color(board[y][x].team), charset[board[y][x].value], gray);
             }
@@ -95,7 +95,7 @@ public class Board {
         return f.substring(0, f.length()-2);
     }
     public static void main(String[] args) {
-        Board b = new Board(5, 5, 3);
+        Board b = new Board(10, 10, 3);
         Scanner sc = new Scanner(System.in);
         while (b.checkWinner() == -1) {
             System.out.println(b);

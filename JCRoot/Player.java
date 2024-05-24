@@ -1,6 +1,5 @@
 package JCRoot;
 
-import java.net.Socket;
 import java.nio.channels.Pipe;
 
 import JCRoot.game.Team;
@@ -9,20 +8,20 @@ public class Player {
     public int id;
     public String name;
     public Team team;
-    public Socket sock;
+    public Connection conn;
     public Pipe pipe;
     public Player(int id, Team team, String name) {
         this.id = id;
         this.team = team;
         this.name = name;
-        this.sock = null;
+        this.conn = null;
         this.pipe = null;
     }
-    public Player(int id, Team team, String name, Socket sock, Pipe pipe) {
+    public Player(int id, Team team, String name, Connection conn, Pipe pipe) {
         this.id = id;
         this.team = team;
         this.name = name;
-        this.sock = sock;
+        this.conn = conn;
         this.pipe = pipe;
     }
 }

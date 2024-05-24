@@ -18,6 +18,7 @@ PARTIES {
     (defines the parties at each end of communication)
     H -> HOST
     C -> CLIENT
+    C2 -> CLIENT via socket 2
     P -> CURRENT PLAYER [can be any of the clients or the host]
 }
 
@@ -29,12 +30,27 @@ GET SERVER DATA {
     TERMINATE SOCKET
 }
 
+S2HANDSHAKE {
+    C2>H: [0x22] // signal S2 handshake
+    C2>H: u2 SID // obtained from the other socket
+    IF [SID VALID] {
+        H>C2: 0x01
+    } ELSE {
+        H>C2: 0x00
+    }
+}
+
 HOST HANDSHAKE {
     C>H: [0x44] // start communication
     IF [REFUSED] {
         H>C: 0x02
         TERMINATE SOCKET
+    } ELSE {
+        H>C: 0x00
     }
+    H>C: u2 SID // unique id per connection
+    DO S2HANDSHAKE
+    WAIT UNTIL S2HANDSHAKE ENDS
     IF [HOST has PASSWORD] {
         H>C: 0x01
         C>H: u1 PLEN // length of password

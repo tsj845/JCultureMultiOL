@@ -18,6 +18,10 @@ public class Client {
     private static TreeMap<Integer, Player> players = new TreeMap<>();
     private static Scanner sc = new Scanner(System.in);
     private static Board board;
+    private static int sid;
+    private static Socket sock, sock2;
+    private static InputStream sIn, s2In;
+    private static OutputStream sOut, s2Out;
     private static boolean confirm(InetAddress addr, int port) {
         try (Socket sock = new Socket(addr, port)) {
             OutputStream sOut = sock.getOutputStream();
@@ -37,7 +41,7 @@ public class Client {
         }
         return true;
     }
-    private static boolean passwordCheck(Socket sock) throws IOException {
+    private static boolean passwordCheck() throws IOException {
         OutputStream sOut = sock.getOutputStream();
         InputStream sIn = sock.getInputStream();
         while (true) {
@@ -56,16 +60,38 @@ public class Client {
             return true;
         }
     }
+    private static void s2handshake(InetAddress addr, int port) {
+        try {
+            sock2 = new Socket(addr, port);
+            s2In = sock2.getInputStream();
+            s2Out = sock2.getOutputStream();
+            s2Out.write(0x22);
+            System.out.println(sid);
+            s2Out.write(sid>>8);
+            s2Out.write(sid&0xff);
+            if (s2In.read() == 1) {
+                return;
+            }
+            throw new IllegalStateException("S2HANDSHAKE FAILURE");
+        } catch (Exception E) {
+            throw new IllegalStateException("S2 CONNECT FAILURE");
+        }
+    }
     private static void start(InetAddress addr, int port) {
         if (!confirm(addr, port)) return;
-        try (Socket sock = new Socket(addr, port)) {
-            InputStream sIn = sock.getInputStream();
-            OutputStream sOut = sock.getOutputStream();
+        try (Socket ssock = new Socket(addr, port)) {
+            Client.sock = ssock;
+            sIn = sock.getInputStream();
+            sOut = sock.getOutputStream();
             sOut.write(0x44);
-            int c = sIn.read();
-            if (c == 2) {sock.close();return;}
-            if (c > 0) {
-                if (!passwordCheck(sock)) {
+            if (sIn.read() == 2) {sock.close();return;}
+            System.out.println("CONNECTED");
+            sid = (sIn.read()<<8) | sIn.read();
+            System.out.println(sid);
+            s2handshake(addr, port);
+            System.out.println("S2 CONNECTED");
+            if (sIn.read() > 0) {
+                if (!passwordCheck()) {
                     sock.close();
                     return;
                 }
@@ -79,18 +105,18 @@ public class Client {
             // Team team = new Team(teamid, new Color(teamid), clname);
             // Teams.teams.put(teamid, team);
             players.put(pnum, new Player(pnum, Teams.teams[teamid], clname));
-            preloop(sock);
+            preloop();
         } catch (Exception E) {
             E.printStackTrace();
         }
     }
-    private static void preloop(Socket sock) throws IOException {
-        InputStream sIn = sock.getInputStream();
+    private static void preloop() throws IOException {
         while (true) {
             int commcode = sIn.read();
             if (commcode == 0) {
                 System.out.println("THE HOST ENDED THE SESSION");
                 sock.close();
+                sock2.close();
                 return;
             }
             if (commcode == 1) {
@@ -99,10 +125,12 @@ public class Client {
                 System.out.println(board.w);
                 System.out.println(board.h);
                 System.out.println(board.p);
-                gameloop(sock);
+                gameloop();
             }
             if (commcode == 2) {
-                String otname = new String(sIn.readNBytes(sIn.read()));
+                byte[] b = new byte[sIn.read()];
+                sIn.read(b);
+                String otname = new String(b);
                 int pid = sIn.read();
                 int tid = sIn.read();
                 // Team team = new Team(tid, new Color(tid), otname);
@@ -116,9 +144,7 @@ public class Client {
             }
         }
     }
-    private static void gameloop(Socket sock) throws IOException {
-        InputStream sIn = sock.getInputStream();
-        OutputStream sOut = sock.getOutputStream();
+    private static void gameloop() throws IOException {
         while (true) {
             System.out.println(board);
             if (board.checkWinner() != -1) {
