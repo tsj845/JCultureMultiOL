@@ -21,8 +21,10 @@ FIXES:
 - error messages no longer erroneously displayed
 
 05/24/2024 -- 19:15
+[CORRECTED @ 05/25/2024 19:18]
 MSG: "board ratio"
 IMPROVEMENTS:
 - made board aspect ratio match that of terminal font
   this ensures that boards do not appear stretched along
   the vertical axis
+- made board have row/column ticks along all sides
