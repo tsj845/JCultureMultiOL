@@ -44,9 +44,12 @@ public class Board {
         for (int y = 0; y < h; y ++) {
             for (int x = 0; x < w; x ++) {
                 if (board[y][x].team != cteam) {
-                    return -1;
+                    return -2;
                 }
             }
+        }
+        if (cteam == -1 && p > 0) {
+            return -2;
         }
         return cteam;
     }
@@ -64,7 +67,7 @@ public class Board {
                 c.value ++;
             }
             int winner = checkWinner();
-            if (winner >= 0) {
+            if (winner > -2) {
                 return;
             }
         }

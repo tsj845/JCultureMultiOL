@@ -5,7 +5,9 @@ import JCRoot.Host;
 public class Game {
     public final int width, height, players;
     public final Board board;
-    public int cplayer = 0;
+    public int[] plist = Host.players.navigableKeySet().stream().mapToInt(e->e).toArray();
+    public int pindex = 0;
+    public int cplayer = plist[pindex];
     public Game(int w, int h, int p) {
         width = w;
         height = h;
@@ -21,8 +23,9 @@ public class Game {
     public void move(int x, int y) {
         board.addTo(x, y, Host.players.get(cplayer).team.id);
         if (board.checkWinner() < 0) {
-            cplayer ++;
-            cplayer = cplayer % players;
+            pindex ++;
+            pindex = pindex % plist.length;
+            cplayer = plist[pindex];
         }
     }
 }

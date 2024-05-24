@@ -1,15 +1,16 @@
 package JCRoot;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import JCRoot.game.Board;
 import JCRoot.game.Color;
+import JCRoot.game.Team;
 // import JCRoot.game.Team;
 import JCRoot.game.Teams;
 
@@ -22,14 +23,27 @@ public class Client {
     private static Socket sock, sock2;
     private static InputStream sIn, s2In;
     private static OutputStream sOut, s2Out;
+    private static int gamestate = 0;
+    private static boolean exiting = false;
+    private static int needInput = 0;
+    private static LinkedBlockingQueue<String> inputs = new LinkedBlockingQueue<>();
+    private static int read(InputStream in) throws Exception {
+        int r = in.read();
+        if (r < 0) crash();
+        return r;
+    }
+    private static int read(InputStream in, byte[] buf) throws Exception {
+        if (in.read(buf) != buf.length) crash();
+        return buf.length;
+    }
     private static boolean confirm(InetAddress addr, int port) {
         try (Socket sock = new Socket(addr, port)) {
             OutputStream sOut = sock.getOutputStream();
             InputStream sIn = sock.getInputStream();
             sOut.write(0x66);
-            boolean hasPass = sIn.read() > 0;
-            byte[] buf = new byte[sIn.read()];
-            sIn.read(buf);
+            boolean hasPass = read(sIn) > 0;
+            byte[] buf = new byte[read(sIn)];
+            read(sIn, buf);
             sock.close();
             String hname = new String(buf);
             System.out.printf("Confirm joining \"%s\" with%s password? (Y/n) ", hname, hasPass?"":"out");
@@ -41,7 +55,7 @@ public class Client {
         }
         return true;
     }
-    private static boolean passwordCheck() throws IOException {
+    private static boolean passwordCheck() throws Exception {
         OutputStream sOut = sock.getOutputStream();
         InputStream sIn = sock.getInputStream();
         while (true) {
@@ -49,7 +63,7 @@ public class Client {
             String pass = sc.nextLine();
             sOut.write(pass.length());
             sOut.write(pass.getBytes());
-            if (sIn.read() == 0) {
+            if (read(sIn) == 0) {
                 System.out.println("INCORRECT PASSWORD");
                 System.out.print("Try again? (Y/n) ");
                 if (sc.nextLine().toLowerCase().matches("(n|no)")) {sOut.write(0);return false;}
@@ -60,16 +74,37 @@ public class Client {
             return true;
         }
     }
+    private static void cli() throws Exception {
+        while (true) {
+            String inp = sc.nextLine();
+            if (needInput > 0) {
+                needInput --;
+                inputs.add(inp);
+                continue;
+            }
+            if (gamestate == 0) {
+                if (inp.equalsIgnoreCase("exit")) {
+                    s2Out.write(0);
+                    exiting = true;
+                    read(s2In);
+                    Player p = players.get(pnum);
+                    System.out.printf("you (\"%s\") have left %s%s%s\n", p.name, p.team.color, p.team.name, Color.DEFAULT);
+                    sock.close();
+                    sock2.close();
+                    System.exit(0);
+                }
+            }
+        }
+    }
     private static void s2handshake(InetAddress addr, int port) {
         try {
             sock2 = new Socket(addr, port);
             s2In = sock2.getInputStream();
             s2Out = sock2.getOutputStream();
             s2Out.write(0x22);
-            System.out.println(sid);
             s2Out.write(sid>>8);
             s2Out.write(sid&0xff);
-            if (s2In.read() == 1) {
+            if (read(s2In) == 1) {
                 return;
             }
             throw new IllegalStateException("S2HANDSHAKE FAILURE");
@@ -84,13 +119,12 @@ public class Client {
             sIn = sock.getInputStream();
             sOut = sock.getOutputStream();
             sOut.write(0x44);
-            if (sIn.read() == 2) {sock.close();return;}
+            if (read(sIn) == 2) {System.out.println("HOST NOT CURRENTLY ACCEPTING PLAYERS");sock.close();return;}
             System.out.println("CONNECTED");
-            sid = (sIn.read()<<8) | sIn.read();
-            System.out.println(sid);
+            sid = (read(sIn)<<8) | read(sIn);
             s2handshake(addr, port);
             System.out.println("S2 CONNECTED");
-            if (sIn.read() > 0) {
+            if (read(sIn) > 0) {
                 if (!passwordCheck()) {
                     sock.close();
                     return;
@@ -100,19 +134,28 @@ public class Client {
             String clname = sc.nextLine();
             sOut.write(clname.length());
             sOut.write(clname.getBytes());
-            pnum = sIn.read();
-            int teamid = sIn.read();
+            pnum = read(sIn);
+            int teamid = read(sIn);
             // Team team = new Team(teamid, new Color(teamid), clname);
             // Teams.teams.put(teamid, team);
-            players.put(pnum, new Player(pnum, Teams.teams[teamid], clname));
+            Player p = new Player(pnum, Teams.teams[teamid], clname);
+            players.put(pnum, p);
+            System.out.printf("you (\"%s\") have joined %s%s%s\n", p.name, p.team.color, p.team.name, Color.DEFAULT);
             preloop();
         } catch (Exception E) {
             E.printStackTrace();
         }
     }
-    private static void preloop() throws IOException {
+    private static void preloop() throws Exception {
+        {
+            Thread t = new Thread(){public void run(){try{cli();}catch(Exception E){E.printStackTrace();}}};
+            t.setDaemon(true);
+            t.start();
+        }
         while (true) {
-            int commcode = sIn.read();
+            int commcode;
+            try {commcode=read(sIn);}
+            catch (ClientGoneException CGE) {return;}
             if (commcode == 0) {
                 System.out.println("THE HOST ENDED THE SESSION");
                 sock.close();
@@ -121,43 +164,51 @@ public class Client {
             }
             if (commcode == 1) {
                 System.out.println("HOST HAS STARTED THE GAME");
-                board = new Board(sIn.read(), sIn.read(), sIn.read());
-                System.out.println(board.w);
-                System.out.println(board.h);
-                System.out.println(board.p);
+                board = new Board(read(sIn), read(sIn), read(sIn));
                 gameloop();
             }
             if (commcode == 2) {
-                byte[] b = new byte[sIn.read()];
-                sIn.read(b);
+                byte[] b = new byte[read(sIn)];
+                read(sIn, b);
                 String otname = new String(b);
-                int pid = sIn.read();
-                int tid = sIn.read();
+                int pid = read(sIn);
+                int tid = read(sIn);
                 // Team team = new Team(tid, new Color(tid), otname);
                 // Teams.teams.put(tid, team);
-                players.put(pid, new Player(pid, Teams.teams[tid], otname));
+                Team team = Teams.teams[tid];
+                players.put(pid, new Player(pid, team, otname));
+                System.out.printf("\"%s\" has joined %s%s%s\n", otname, team.color, team.name, Color.DEFAULT);
             }
             if (commcode == 3) {
-                int pid = sIn.read();
-                int tid = sIn.read();
-                players.get(pid).team = Teams.teams[tid];
+                int pid = read(sIn);
+                int tid = read(sIn);
+                Player p = players.get(pid);
+                Team nteam = Teams.teams[tid];
+                System.out.printf("\"%s\" has switched from team %s%s%s to team %s%s%s\n", p.name, p.team.color, p.team.name, Color.DEFAULT, nteam.color, nteam.name, Color.DEFAULT);
+                p.team = nteam;
+            }
+            if (commcode == 4) {
+                int pid = read(sIn);
+                Player left = players.remove(pid);
+                System.out.printf("\"%s\" from %s%s%s has left\n", left.name, left.team.color, left.team.name, Color.DEFAULT);
             }
         }
     }
-    private static void gameloop() throws IOException {
+    private static void gameloop() throws Exception {
         while (true) {
             System.out.println(board);
-            if (board.checkWinner() != -1) {
+            if (board.checkWinner() != -2) {
                 System.out.printf("Team %s has won!\n", Teams.teams[board.checkWinner()]);
                 return;
             }
-            int ccode = sIn.read();
+            int ccode = read(sIn);
             if (ccode == 1) {
                 int row;
                 int col;
                 while (true) {
                     System.out.printf("%sEnter Move:%s\n", players.get(pnum).team.color, Color.DEFAULT);
-                    String l = sc.nextLine().toUpperCase();
+                    needInput ++;
+                    String l = inputs.take().toUpperCase();
                     if (l.length() == 0) {
                         System.out.println("malformed");
                         continue;
@@ -179,18 +230,25 @@ public class Client {
                     }
                     sOut.write(col);
                     sOut.write(row);
-                    if (sIn.read() == 0) {
+                    if (read(sIn) == 0) {
                         System.out.println("invalid");
                         continue;
                     }
                     break;
                 }
             }
-            int col = sIn.read();
-            int row = sIn.read();
-            int team = sIn.read();
+            int col = read(sIn);
+            int row = read(sIn);
+            int team = read(sIn);
             board.addTo(col, row, team);
         }
+    }
+    private static void crash() throws Exception {
+        if (exiting) throw new ClientGoneException();
+        System.out.println();
+        System.out.println("GAME CRASHED");
+        System.out.println();
+        throw new IllegalStateException();
     }
     public static void main(String[] args) throws Exception {
         start(InetAddress.getByName(args[0]), Integer.parseInt(args[1]));

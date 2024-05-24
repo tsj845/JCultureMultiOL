@@ -78,7 +78,19 @@ HOST HANDSHAKE {
     goto PREGAME LOOP
 }
 
-PREGAME LOOP {
+PREGAME LOOP (ON SOCKET 2) {
+    C2>H: byte DCODE
+    SWITCH [DCODE] {
+        ON [0x00] {
+            // CLIENT is leaving the session
+            H>C2: 0x00 // only after this is recieved may the socket be closed
+            HOST SIGNALS OTHERS OF LEAVING PLAYER
+            TERMINATE SOCKET
+        }
+    }
+}
+
+PREGAME LOOP (ON SOCKET 1) {
     H>C: byte DCODE // code for what kind of data is being sent
     SWITCH [DCODE] {
         ON [0x00] {
@@ -104,6 +116,10 @@ PREGAME LOOP {
             // change team
             H>C: u1 PID // id of player changing teams
             H>C: u1 TID // new team id [must be an existing team]
+        }
+        ON [0x04] {
+            // other player left
+            H>C: u1 PID // id of player that left
         }
     }
     goto PREGAME LOOP

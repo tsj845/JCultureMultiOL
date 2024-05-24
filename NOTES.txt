@@ -1,0 +1,16 @@
+05/24/2024 -- 6:32 PM
+MSG: "tons of improvements"
+FIXES:
+- clients attempting to join during ongoing game no longer causes crash
+- clients and hosts no longer operate on the assumption that socket reads will always succeed
+ADDITIONS:
+- clients can now leave
+- added messages client side for when players join, leave, and switch teams
+- added host welcome message and help menu
+- added prompt messages to the "setteam" command
+IMPROVEMENTS:
+- "setteam" command now automatically runs the "list" command before showing prompts
+- all commands with inputs can now be canceled by entering "cancel" into any prompt field
+  (currently affects "start" and "setteam")
+GROUNDWORK:
+- win checks now only report wins for neutral team if there are no other players
