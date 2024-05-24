@@ -27,6 +27,7 @@ public class Client {
     private static boolean exiting = false;
     private static int needInput = 0;
     private static LinkedBlockingQueue<String> inputs = new LinkedBlockingQueue<>();
+    private static final Object EXIT_LOCK = new Object();
     private static int read(InputStream in) throws Exception {
         int r = in.read();
         if (r < 0) crash();
@@ -85,8 +86,11 @@ public class Client {
             if (gamestate == 0) {
                 if (inp.equalsIgnoreCase("exit")) {
                     s2Out.write(0);
-                    exiting = true;
-                    read(s2In);
+                    synchronized(EXIT_LOCK) {
+                        exiting = true;
+                    }
+                    try {read(sIn);}
+                    catch(ClientGoneException CGE) {}
                     Player p = players.get(pnum);
                     System.out.printf("you (\"%s\") have left %s%s%s\n", p.name, p.team.color, p.team.name, Color.DEFAULT);
                     sock.close();
@@ -244,7 +248,9 @@ public class Client {
         }
     }
     private static void crash() throws Exception {
-        if (exiting) throw new ClientGoneException();
+        synchronized(EXIT_LOCK) {
+            if (exiting) throw new ClientGoneException();
+        }
         System.out.println();
         System.out.println("GAME CRASHED");
         System.out.println();

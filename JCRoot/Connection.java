@@ -14,7 +14,7 @@ public class Connection {
     public OutputStream s1O, s2O;
     public CompletableFuture<Void> cf1 = new CompletableFuture<>();
     public CompletableFuture<Void> cf2 = new CompletableFuture<>();
-    public boolean cgone = false;
+    private boolean cgone = false;
     public Connection(int sid, Socket s1, Socket s2) throws IOException {
         this.sid = sid;
         this.s1 = s1;
@@ -31,7 +31,7 @@ public class Connection {
         this.s2I = s2.getInputStream();
         this.s2O = s2.getOutputStream();
     }
-    public void close(boolean cgone) throws IOException {
+    public synchronized void close(boolean cgone) throws IOException {
         this.cgone = cgone;
         s1.close();
         if (s2 != null) {
@@ -40,5 +40,8 @@ public class Connection {
     }
     public void close() throws IOException {
         close(false);
+    }
+    public synchronized boolean cgone() {
+        return cgone;
     }
 }

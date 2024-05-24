@@ -15,10 +15,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-// import JCRoot.game.Color;
-import JCRoot.game.Game;
-import JCRoot.game.Team;
-import JCRoot.game.Teams;
+import JCRoot.game.*;
 
 public class Host {
     private static volatile int itcw=0, itch=0, itcp=0;
@@ -59,10 +56,12 @@ public class Host {
             p.pipe2.source().read(ByteBuffer.wrap(codebuf));
             if (gamestate == 0) {
                 if (codebuf[0] == 0) {
+                    System.out.printf("\"%s\" from %s%s%s has left\n", p.name, p.team.color, p.team.name, Color.DEFAULT);
                     synchronized(players) {
                         players.remove(pcode);
-                        p.conn.cgone = true;
-                        p.conn.close();
+                        p.conn.s2O.write(0);
+                        p.conn.s2O.flush();
+                        p.conn.close(true);
                         countdown = new CountDownLatch(players.size());
                         for (Player player : players.values()) {
                             player.pipe.sink().write(ByteBuffer.wrap(new byte[]{4, (byte)(p.id)}));
@@ -206,7 +205,10 @@ public class Host {
                     System.out.println("malformed");
                 }
             }
-            players.get(pid).team = Teams.teams[tid];
+            Player pl = players.get(pid);
+            Team nteam = Teams.teams[tid];
+            System.out.printf("\"%s\" has switched from team %s%s%s to team %s%s%s\n", pl.name, pl.team.color, pl.team.name, Color.DEFAULT, nteam.color, nteam.name, Color.DEFAULT);
+            pl.team = nteam;
             countdown = new CountDownLatch(players.size());
             for (Player p : players.values()) {
                 p.pipe.sink().write(ByteBuffer.wrap(new byte[]{2, (byte)pid, (byte)tid}));
@@ -236,9 +238,12 @@ public class Host {
             String line = sc.nextLine();
             if (line.equalsIgnoreCase("stop")) {
                 System.out.println("STOPPING");
+                gamestate = -1;
+                countdown = new CountDownLatch(players.size());
                 for (Player p : players.values()) {
                     p.pipe.sink().write(ByteBuffer.wrap(new byte[]{0}));
                 }
+                countdown.await();
                 return;
             } else if (line.equalsIgnoreCase("start")) {
                 itcw = getRestrictNum("Enter width: ", 1, 26);
@@ -248,7 +253,6 @@ public class Host {
                 gamestate = 1;
                 itcp = players.size();
                 game = new Game(itcw, itch, itcp);
-                System.out.println(itcp);
                 countdown = new CountDownLatch(itcp);
                 for (Player p : players.values()) {
                     p.pipe.sink().write(ByteBuffer.wrap(new byte[]{1}));
@@ -273,7 +277,8 @@ public class Host {
                 t.start();
             }
         } catch (Exception E) {
-            E.printStackTrace();
+            // E.printStackTrace();
+            // throw new IllegalStateException(E);
         }
     }
     private static boolean checkPassword(Socket sock) throws Exception {
@@ -378,6 +383,7 @@ public class Host {
             sOut.write(id%6);
             conn.pid = id;
             Player p = new Player(id, Teams.teams[id%6], cliname, conn);
+            System.out.printf("\"%s\" joined %s%s%s\n", p.name, p.team.color, p.team.name, Color.DEFAULT);
             preloop(p);
             // sOut.write(cc.red);
             // sOut.write(cc.green);
@@ -412,6 +418,7 @@ public class Host {
             if (pc == 0) {
                 sOut.write(0);
                 player.conn.close(true);
+                countdown.countDown();
                 return;
             }
             if (pc == 1) {
@@ -497,7 +504,7 @@ public class Host {
         return buf.length;
     }
     private static void crash(Connection conn) throws Exception {
-        if (conn != null && conn.cgone) throw new ClientGoneException();
+        if (conn != null && conn.cgone()) throw new ClientGoneException();
         System.out.println();
         System.out.println("GAME CRASHED");
         System.out.println();

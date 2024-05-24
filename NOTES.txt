@@ -1,4 +1,4 @@
-05/24/2024 -- 6:32 PM
+05/24/2024 -- 18:32
 MSG: "tons of improvements"
 FIXES:
 - clients attempting to join during ongoing game no longer causes crash
@@ -14,3 +14,8 @@ IMPROVEMENTS:
   (currently affects "start" and "setteam")
 GROUNDWORK:
 - win checks now only report wins for neutral team if there are no other players
+
+05/24/2024 -- 19:05
+MSG: "bug fixes"
+FIXES:
+- error messages no longer erroneously displayed
