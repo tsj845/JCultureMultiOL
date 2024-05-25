@@ -28,9 +28,10 @@ public class Board {
         }
     }
     public boolean willTopple(int x, int y) {
-        boolean xt = (x == 0 || x == (w-1));
-        boolean yt = (y == 0 || y == (h-1));
-        return (board[y][x].value >= (4-(xt?1:0)-(yt?1:0)));
+        return board[y][x].value >= (4-(x==0?1:0)-(x==(w-1)?1:0)-(y==0?1:0)-(y==(h-1)?1:0));
+        // boolean xt = (x == 0 || x == (w-1));
+        // boolean yt = (y == 0 || y == (h-1));
+        // return (board[y][x].value >= (4-(xt?1:0)-(yt?1:0)));
     }
     private void getNeightbors(int x, int y, LinkedList<Cell> cells) {
         if (x > 0) {
