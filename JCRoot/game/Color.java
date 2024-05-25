@@ -29,6 +29,8 @@ function hueToRgb(p, q, t) {
 public class Color {
     public static final String DEFAULT = "\u001b[38;5;7m\u001b[48;5;0m";
     public static final String TERMDEF = "\u001b[0m";
+    public static final Color WHITE = new Color(6);
+    public static final Color GRAY = new Color(-1);
     // public final int red, green, blue;
     public final int n;
     // private double hueToRgb(double h) {

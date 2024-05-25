@@ -14,6 +14,16 @@ public class Game {
         players = p;
         board = new Board(w, h, p);
     }
+    public boolean canMove(int team) {
+        for (int y = 0; y < height; y ++) {
+            for (int x = 0; x < width; x ++) {
+                if (board.board[y][x].team == -1 || board.board[y][x].team == team) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     public boolean validate(int x, int y, int team) {
         if (x < 0 || y < 0 || x >= width || y >= height || team < 0 || team >= 6) {
             return false;
@@ -23,9 +33,11 @@ public class Game {
     public void move(int x, int y) {
         board.addTo(x, y, Host.players.get(cplayer).team.id);
         if (board.checkWinner() < 0) {
-            pindex ++;
-            pindex = pindex % plist.length;
-            cplayer = plist[pindex];
+            do {
+                pindex ++;
+                pindex = pindex % plist.length;
+                cplayer = plist[pindex];
+            } while (!canMove(cplayer));
         }
     }
 }

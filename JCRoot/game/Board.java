@@ -4,8 +4,15 @@ import java.util.LinkedList;
 import java.util.Scanner;
 
 public class Board {
+    public static LinkedList<char[]> tilesets = new LinkedList<>();
+    public static int CHARI = 0;
+    static {
+        tilesets.add(new char[]{'!', '-', '+', '#', 'N', 'N'});
+        tilesets.add(new char[]{'!', '-', '+', 'Y', 'X', 'N'});
+    }
     public char[] alpha = new char[]{'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
-    public char[] charset = new char[]{'#', '-', '+', '#', 'N', 'N'};
+    public char[] charset = tilesets.get(Board.CHARI);
+    public int chari = Board.CHARI;
     public final int w, h, p;
     public Cell[][] board;
     public Color gray = new Color(-1);

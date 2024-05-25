@@ -38,7 +38,7 @@ public class Host {
             System.out.print(prompt);
             try {
                 String l = sc.nextLine();
-                if (l.equalsIgnoreCase("cancel")) return lo-1;
+                if (l.equalsIgnoreCase("cancel") || l.equalsIgnoreCase("done")) return lo-1;
                 int i = Integer.parseInt(l);
                 if (i >= lo && i <= hi) {
                     return i;
@@ -148,6 +148,63 @@ public class Host {
             }
         }
     }
+    private static void pickTileset() throws Exception {
+        Board testBoard = new Board(4, 1, 0);
+        testBoard.board[0][1].value = 2;
+        testBoard.board[0][2].value = 3;
+        testBoard.board[0][3].value = 4;
+        while (true) {
+            System.out.println(testBoard);
+            System.out.printf("board %d/%d [%sprev%s/%snext%s/%sconfirm%s]?\n", testBoard.chari+1, Board.tilesets.size(), testBoard.chari > 0 ? Color.WHITE : Color.GRAY, Color.DEFAULT, testBoard.chari < (Board.tilesets.size()-1) ? Color.WHITE : Color.GRAY, Color.DEFAULT, Color.WHITE, Color.DEFAULT);
+            String l = sc.nextLine();
+            if (l.equalsIgnoreCase("cancel")) {
+                return;
+            } else if (l.equalsIgnoreCase("prev") && testBoard.chari > 0) {
+                testBoard.chari --;
+                testBoard.charset = Board.tilesets.get(testBoard.chari);
+            } else if (l.equalsIgnoreCase("next") && testBoard.chari < (Board.tilesets.size()-1)) {
+                testBoard.chari ++;
+                testBoard.charset = Board.tilesets.get(testBoard.chari);
+            } else if (l.equalsIgnoreCase("confirm")) {
+                Board.CHARI = testBoard.chari;
+                return;
+            } else {
+                System.out.println("invalid");
+            }
+        }
+    }
+    private static void loadTilesets() throws Exception {}
+    private static void makeTileset() throws Exception {}
+    private static void saveTilesets() throws Exception {}
+    private static void tileset() throws Exception {
+        char[] tileset = new char[6];
+        tileset[0] = '!';
+        int choice = getRestrictNum(
+            "Please select an option or enter \"done\" when finished:\n"+
+            " (1) use already loaded tileset\n"+
+            " (2) load tilesets from file\n"+
+            " (3) create new tileset\n"+
+            " (4) save tilesets to file:\n"+
+            "> ",
+            1, 4);
+        if (choice == 0) {
+            return;
+        }
+        switch (choice) {
+            case 1:
+                pickTileset();
+                break;
+            case 2:
+                loadTilesets();
+                break;
+            case 3:
+                makeTileset();
+                break;
+            case 4:
+                saveTilesets();
+                break;
+        }
+    }
     private static void clcommand(String line) throws Exception {
         if (line.charAt(0) == '"') {
             System.out.println("unrecognized, try removing the quotes?");
@@ -217,6 +274,8 @@ public class Host {
             }
             countdown.countDown();
             countdown.await();
+        } else if (line.equalsIgnoreCase("tileset")) {
+            tileset();
         } else if (line.equalsIgnoreCase("help")) {
             System.out.println("HELP MENU");
             System.out.println(
@@ -227,8 +286,9 @@ public class Host {
                 "- list    -- lists all players in the session\n"+
                 "- setteam -- switches what team a player is on,\n"+
                 "              prompts for player id and team id,\n"+
-                "              automatically runs the \"list\" command\n\n"+
-                "any command with a prompt may be canceled by entering \"cancel\"\n"
+                "              automatically runs the \"list\" command\n"+
+                "- tileset -- opens the prompt to change the game's tileset\n"+
+                "\nany command with a prompt may be canceled by entering \"cancel\"\n"
             );
         } else {
             System.out.println("unrecognized\n");
