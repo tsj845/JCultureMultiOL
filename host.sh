@@ -1,1 +1,1 @@
-javac JCRoot/Host.java && java JCRoot/Host "$@"
+find . -name "*.class" -type f -delete && javac JCRoot/Host.java && java JCRoot/Host "$@"

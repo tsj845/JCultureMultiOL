@@ -33,3 +33,12 @@ IMPROVEMENTS:
 MSG: "colors"
 IMPROVEMENTS:
 - made colors uniform across different terminals
+
+05/24/2024 -- 20:02
+MSG: "error fixes"
+FIXES:
+- made the printing of teams no longer get colors stuck
+- fixed another way for erroneous error messages to appear
+- fixed empty lines causing the host program to crash
+IMPROVEMENTS:
+- updated help menu

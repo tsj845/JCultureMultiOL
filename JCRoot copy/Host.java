@@ -45,6 +45,7 @@ public class Host {
                 }
             } catch (Exception E) {}
             System.out.println("invalid");
+            System.out.print(prompt);
         }
     }
     private static void backrunner() throws Exception {
@@ -227,8 +228,7 @@ public class Host {
                 "- list    -- lists all players in the session\n"+
                 "- setteam -- switches what team a player is on,\n"+
                 "              prompts for player id and team id,\n"+
-                "              automatically runs the \"list\" command\n\n"+
-                "any command with a prompt may be canceled by entering \"cancel\"\n"
+                "              automatically runs the \"list\" command"
             );
         } else {
             System.out.println("unrecognized\n");
@@ -239,7 +239,6 @@ public class Host {
         clcommand("msg");
         while (true) {
             String line = sc.nextLine();
-            if (line.length() == 0) continue;
             if (line.equalsIgnoreCase("stop")) {
                 System.out.println("STOPPING");
                 gamestate = -1;
