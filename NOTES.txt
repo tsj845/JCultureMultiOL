@@ -42,3 +42,22 @@ FIXES:
 - fixed empty lines causing the host program to crash
 IMPROVEMENTS:
 - updated help menu
+
+05/26/2024 -- 18:05
+MSG: "tilesets"
+FIXES:
+- finishing any subdialog of the "tileset" command no longer exits the tileset command
+ADDITIONS:
+- added the ability to create new tilesets
+- added ability to load tilesets from file
+- added ability to save tilesets to file
+- clients now use the tileset selected by the host
+UPDATES:
+- updated protocol to allow clients to be notified of changes to the tileset
+- updated .gitignore to ignore saved user tilesets
+NOTES:
+- tilesets may not be saved to tilesets.txt, as this is not .gitignore'd and
+  is where the default sets are stored
+- when loading tilesets, only the first four characters of a line are used,
+  all other characters are ignored and may be used as comments,
+  any line with fewer than four characters will be ignored

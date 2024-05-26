@@ -121,8 +121,23 @@ PREGAME LOOP (ON SOCKET 1) {
             // other player left
             H>C: u1 PID // id of player that left
         }
+        ON [0x05] {
+            // tileset change
+            H>C: u1 SETID
+        }
+        ON [0x06] {
+            do TILESET UPDATE
+        }
     }
     goto PREGAME LOOP
+}
+
+TILESET UPDATE {
+    NOTE: TILESET UPDATE will cause clients to behave as though they also recieved a command to change to SETID 0
+    H>C: u1 NUMT // number of tilesets
+    FOR EACH TILESET {
+        H>C: [u2, u2, u2, u2] // four java characters
+    }
 }
 
 GAME LOOP {

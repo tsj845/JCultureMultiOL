@@ -9,12 +9,15 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Pipe.SinkChannel;
 import java.nio.channels.Pipe.SourceChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 
 import JCRoot.game.*;
 
@@ -148,11 +151,15 @@ public class Host {
             }
         }
     }
-    private static void pickTileset() throws Exception {
+    private static Board getTestBoard() {
         Board testBoard = new Board(4, 1, 0);
         testBoard.board[0][1].value = 2;
         testBoard.board[0][2].value = 3;
         testBoard.board[0][3].value = 4;
+        return testBoard;
+    }
+    private static void pickTileset() throws Exception {
+        Board testBoard = getTestBoard();
         while (true) {
             System.out.println(testBoard);
             System.out.printf("board %d/%d [%sprev%s/%snext%s/%sconfirm%s]?\n", testBoard.chari+1, Board.tilesets.size(), testBoard.chari > 0 ? Color.WHITE : Color.GRAY, Color.DEFAULT, testBoard.chari < (Board.tilesets.size()-1) ? Color.WHITE : Color.GRAY, Color.DEFAULT, Color.WHITE, Color.DEFAULT);
@@ -167,42 +174,162 @@ public class Host {
                 testBoard.charset = Board.tilesets.get(testBoard.chari);
             } else if (l.equalsIgnoreCase("confirm")) {
                 Board.CHARI = testBoard.chari;
+                countdown = new CountDownLatch(players.size());
+                for (Player player : players.values()) {
+                    player.pipe.sink().write(ByteBuffer.wrap(new byte[]{5, (byte)Board.CHARI}));
+                }
+                countdown.await();
                 return;
             } else {
                 System.out.println("invalid");
             }
         }
     }
-    private static void loadTilesets() throws Exception {}
-    private static void makeTileset() throws Exception {}
-    private static void saveTilesets() throws Exception {}
-    private static void tileset() throws Exception {
-        char[] tileset = new char[6];
-        tileset[0] = '!';
-        int choice = getRestrictNum(
-            "Please select an option or enter \"done\" when finished:\n"+
-            " (1) use already loaded tileset\n"+
-            " (2) load tilesets from file\n"+
-            " (3) create new tileset\n"+
-            " (4) save tilesets to file:\n"+
-            "> ",
-            1, 4);
-        if (choice == 0) {
+    private static void loadTilesets() throws Exception {
+        String location = "tilesets.txt";
+        System.out.print("Use default tilesets? (Y/n) ");
+        if (sc.nextLine().toLowerCase().matches("(n|no)")) {
+            System.out.print("Use default save location? (Y/n) ");
+            if (sc.nextLine().toLowerCase().matches("(n|no)")) {
+                while (true) {
+                    System.out.print("Enter file location: ");
+                    String l = sc.nextLine();
+                    if (l.equalsIgnoreCase("cancel")) {
+                        System.out.println("reverting to default location");
+                        break;
+                    }
+                    if (Files.exists(Path.of(l))) {
+                        location = l;
+                        break;
+                    }
+                    System.out.println("couldn't find that file");
+                }
+            } else {
+                location = "usersets.tset";
+            }
+        }
+        if (!Files.exists(Path.of(location))) {
+            System.out.println("couldn't find file");
             return;
         }
-        switch (choice) {
-            case 1:
-                pickTileset();
+        System.out.printf("About to load tilesets from \"%s\"\nConfirm loading? (this will remove any other tilesets that are currently loaded) (y/N) ", location);
+        if (!sc.nextLine().toLowerCase().matches("(y|yes)")) {
+            System.out.println("aborting");
+            return;
+        }
+        Stream<String> datastream = Files.lines(Path.of(location));
+        String[] lines = datastream.toArray(String[]::new);
+        datastream.close();
+        Board.CHARI = 0;
+        Board.tilesets.clear();
+        for (String line : lines) {
+            if (line.length() < 4) continue;
+            char[] set = new char[]{'!','-','-','-','-','N'};
+            for (int i = 1; i < 5; i ++) {
+                set[i] = line.charAt(i-1);
+            }
+            Board.tilesets.add(set);
+        }
+        countdown = new CountDownLatch(players.size());
+        for (Player player : players.values()) {
+            player.pipe.sink().write(ByteBuffer.wrap(new byte[]{6}));
+        }
+        countdown.await();
+    }
+    private static void makeTileset() throws Exception {
+        Board testBoard = getTestBoard();
+        char[] set = new char[]{'!','-','-','-','-','N'};
+        testBoard.charset = set;
+        System.out.println(testBoard);
+        while (true) {
+            System.out.println("Enter characters in order, leave the line blank to use the current character");
+            for (int i = 1; i < 5; i ++) {
+                System.out.printf("Enter character %d: ", i);
+                String l = sc.nextLine();
+                if (l.length() == 0) continue;
+                set[i] = l.charAt(0);
+            }
+            System.out.println(testBoard);
+            System.out.print("Confirm? (y/N) ");
+            String l = sc.nextLine();
+            if (l.equalsIgnoreCase("cancel")) {
+                return;
+            }
+            if (l.toLowerCase().matches("(y|yes)")) {
                 break;
-            case 2:
-                loadTilesets();
-                break;
-            case 3:
-                makeTileset();
-                break;
-            case 4:
-                saveTilesets();
-                break;
+            }
+        }
+        Board.CHARI = Board.tilesets.size();
+        Board.tilesets.add(set);
+        countdown = new CountDownLatch(players.size());
+        for (Player p : players.values()) {
+            p.pipe.sink().write(ByteBuffer.wrap(new byte[]{6}));
+        }
+        countdown.await();
+        countdown = new CountDownLatch(players.size());
+        for (Player p : players.values()) {
+            p.pipe.sink().write(ByteBuffer.wrap(new byte[]{5, (byte)Board.CHARI}));
+        }
+        countdown.await();
+    }
+    private static void saveTilesets() throws Exception {
+        String location = "usersets.tset";
+        System.out.print("Use default save location? (Y/n) ");
+        if (sc.nextLine().toLowerCase().matches("(n|no)")) {
+            while (true) {
+                System.out.print("Enter file location: ");
+                String l = sc.nextLine();
+                if (l.equalsIgnoreCase("cancel")) {
+                    System.out.println("reverting to default location");
+                    break;
+                }
+                if (!l.equals("tilesets.txt")) {
+                    location = l;
+                    break;
+                }
+                System.out.println("can't save there");
+            }
+        }
+        System.out.printf("About to save tilesets to \"%s\"\nConfirm saving? (this will delete any tilesets from this file that are not currently loaded) (y/N) ", location);
+        if (!sc.nextLine().toLowerCase().matches("(y|yes)")) {
+            System.out.println("aborting");
+            return;
+        }
+        String f = "";
+        for (char[] set : Board.tilesets) {
+            f += String.format("%c%c%c%c\n", set[1], set[2], set[3], set[4]);
+        }
+        f = f.substring(0, f.length()-1);
+        Files.writeString(Path.of(location), f);
+        System.out.println("successfully saved tilesets");
+    }
+    private static void tileset() throws Exception {
+        while (true) {
+            int choice = getRestrictNum(
+                "Please select an option or enter \"done\" when finished:\n"+
+                " (1) use already loaded tileset\n"+
+                " (2) load tilesets from file\n"+
+                " (3) create new tileset\n"+
+                " (4) save tilesets to file:\n"+
+                "> ",
+                1, 4);
+            if (choice == 0) {
+                return;
+            }
+            switch (choice) {
+                case 1:
+                    pickTileset();
+                    break;
+                case 2:
+                    loadTilesets();
+                    break;
+                case 3:
+                    makeTileset();
+                    break;
+                case 4:
+                    saveTilesets();
+                    break;
+            }
         }
     }
     private static void clcommand(String line) throws Exception {
@@ -473,43 +600,79 @@ public class Host {
             }
             players.put(player.id, player);
         }
+        sOut.write(6);
+        sOut.write(Board.tilesets.size());
+        for (char[] set : Board.tilesets) {
+            for (int i = 1; i < 5; i ++) {
+                sOut.write(set[i]>>8);
+                sOut.write(set[i]&0xff);
+            }
+        }
+        sOut.write(5);
+        sOut.write(Board.CHARI);
         player.conn.cf2.complete(null);
         while (true) {
             byte[] bb = new byte[1];
             player.pipe.source().read(ByteBuffer.wrap(bb));
             // System.out.printf("PLAYER %d COMM %d\n", player.id, bb[0]);
             int pc = bb[0];
-            if (pc == 0) {
-                sOut.write(0);
-                player.conn.close(true);
-                countdown.countDown();
-                return;
-            }
-            if (pc == 1) {
-                sOut.write(1);
-                sOut.write(itcw);
-                sOut.write(itch);
-                sOut.write(itcp);
-                countdown.countDown();
-                countdown.await();
-                gameloop(player);
-            }
-            if (pc == 2) {
-                byte[] buf = new byte[3];
-                player.pipe.source().read(ByteBuffer.wrap(buf));
-                sOut.write(3);
-                sOut.write(buf[0]);
-                sOut.write(buf[1]);
-                countdown.countDown();
-                countdown.await();
-            }
-            if (pc == 4) {
-                byte[] buf = new byte[2];
-                player.pipe.source().read(ByteBuffer.wrap(buf));
-                sOut.write(4);
-                sOut.write(buf[0]);
-                countdown.countDown();
-                countdown.await();
+            switch (pc) {
+                case 0:
+                    sOut.write(0);
+                    player.conn.close(true);
+                    countdown.countDown();
+                    return;
+                case 1: {
+                    sOut.write(1);
+                    sOut.write(itcw);
+                    sOut.write(itch);
+                    sOut.write(itcp);
+                    countdown.countDown();
+                    countdown.await();
+                    gameloop(player);
+                    break;
+                }
+                case 2: {
+                    byte[] buf = new byte[3];
+                    player.pipe.source().read(ByteBuffer.wrap(buf));
+                    sOut.write(3);
+                    sOut.write(buf[0]);
+                    sOut.write(buf[1]);
+                    countdown.countDown();
+                    countdown.await();
+                    break;
+                }
+                case 4: {
+                    byte[] buf = new byte[2];
+                    player.pipe.source().read(ByteBuffer.wrap(buf));
+                    sOut.write(4);
+                    sOut.write(buf[0]);
+                    countdown.countDown();
+                    countdown.await();
+                    break;
+                }
+                case 5: {
+                    byte[] buf = new byte[1];
+                    player.pipe.source().read(ByteBuffer.wrap(buf));
+                    sOut.write(5);
+                    sOut.write(buf[0]);
+                    countdown.countDown();
+                    countdown.await();
+                    break;
+                }
+                case 6: {
+                    sOut.write(6);
+                    sOut.write(Board.tilesets.size());
+                    for (char[] set : Board.tilesets) {
+                        for (int i = 1; i < 5; i ++) {
+                            sOut.write(set[i]>>8);
+                            sOut.write(set[i]&0xff);
+                        }
+                    }
+                    countdown.countDown();
+                    countdown.await();
+                    break;
+                }
             }
         }
     }

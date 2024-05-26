@@ -196,6 +196,22 @@ public class Client {
                 Player left = players.remove(pid);
                 System.out.printf("\"%s\" from %s%s%s has left\n", left.name, left.team.color, left.team.name, Color.DEFAULT);
             }
+            if (commcode == 5) {
+                int setid = read(sIn);
+                Board.CHARI = setid;
+            }
+            if (commcode == 6) {
+                int setcount = read(sIn);
+                Board.CHARI = 0;
+                Board.tilesets.clear();
+                for (int i = 0; i < setcount; i ++) {
+                    char[] set = new char[]{'!', '-', '-', '-', '-', 'N'};
+                    for (int j = 1; j < 5; j ++) {
+                        set[j] = (char)((read(sIn)<<8)|read(sIn));
+                    }
+                    Board.tilesets.add(set);
+                }
+            }
         }
     }
     private static void gameloop() throws Exception {
