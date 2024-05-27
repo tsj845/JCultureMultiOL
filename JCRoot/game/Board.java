@@ -6,6 +6,7 @@ import java.util.Scanner;
 public class Board {
     public static LinkedList<char[]> tilesets = new LinkedList<>();
     public static int CHARI = 0;
+    public static boolean compact = false;
     static {
         tilesets.add(new char[]{'!', '-', '+', '#', 'N', 'N'});
         tilesets.add(new char[]{'!', '-', '+', 'Y', 'X', 'N'});
@@ -33,7 +34,7 @@ public class Board {
         // boolean yt = (y == 0 || y == (h-1));
         // return (board[y][x].value >= (4-(xt?1:0)-(yt?1:0)));
     }
-    private void getNeightbors(int x, int y, LinkedList<Cell> cells) {
+    private void getNeighbors(int x, int y, LinkedList<Cell> cells) {
         if (x > 0) {
             cells.add(board[y][x-1]);
         }
@@ -64,13 +65,13 @@ public class Board {
     public void topple(int x, int y, int team) {
         LinkedList<Cell> toTopple = new LinkedList<>();
         board[y][x].value = 1;
-        getNeightbors(x, y, toTopple);
+        getNeighbors(x, y, toTopple);
         while (!toTopple.isEmpty()) {
             Cell c = toTopple.removeLast();
             c.team = team;
             if (willTopple(c.x, c.y)) {
                 c.value = 1;
-                getNeightbors(c.x, c.y, toTopple);
+                getNeighbors(c.x, c.y, toTopple);
             } else {
                 c.value ++;
             }
@@ -89,16 +90,38 @@ public class Board {
             board[y][x].value ++;
         }
     }
+    public String toStringCompact() {
+        String f = "   ";
+        for (int i = 0; i < w; i ++) {
+            f += String.format("%c ", alpha[i]);
+        }
+        f += "\n";
+        for (int y = 0; y < h; y ++) {
+            f += String.format("%2d ", (y+1));
+            for (int x = 0; x < w; x ++) {
+                f += String.format("%s%c%s ", new Color(board[y][x].team), charset[board[y][x].value], gray);
+            }
+            f += Color.DEFAULT;
+            f += String.format("%d", (y+1));
+            f += '\n';
+        }
+        f += "   ";
+        for (int i = 0; i < w; i ++) {
+            f += String.format("%c ", alpha[i]);
+        }
+        return f;
+    }
     public String toString() {
+        if (Board.compact) return toStringCompact();
         String f = "    ";
         for (int i = 0; i < w; i ++) {
-            f += String.format("  %s ", alpha[i]);
+            f += String.format("  %c ", alpha[i]);
         }
         f += "\n\n";
         for (int y = 0; y < h; y ++) {
             f += String.format(" %2d  ", (y+1));
             for (int x = 0; x < w; x ++) {
-                f += String.format(" %s%s%s  ", new Color(board[y][x].team), charset[board[y][x].value], gray);
+                f += String.format(" %s%c%s  ", new Color(board[y][x].team), charset[board[y][x].value], gray);
             }
             f += Color.DEFAULT;
             f += String.format(" %d ", (y+1));

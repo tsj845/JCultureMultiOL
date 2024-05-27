@@ -61,3 +61,23 @@ NOTES:
 - when loading tilesets, only the first four characters of a line are used,
   all other characters are ignored and may be used as comments,
   any line with fewer than four characters will be ignored
+
+05/26/2024 -- 18:10
+BUNDLED: "bundle update 1"
+MSG: "fixes"
+FIXES:
+- disallowed 1x1 boards
+- prevented game from starting without any connected players
+GROUNDWORK:
+- board is now able to display in compact format
+NOTES:
+- board compact display is not currently accessible from the program, this is coming soon
+
+05/26/2024 -- 23:12
+BUNDLED: "bundle update 1"
+MSG: "menus"
+GROUNDWORK:
+- added modular menus
+ADDITIONS:
+- client may now use "options" to access the options menu,
+  the "board" sub-menu allows the compact board display to be toggled

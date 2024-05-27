@@ -1,0 +1,1 @@
+javac JCRoot/menu/Menu.java && java JCRoot/menu/Menu "$@"

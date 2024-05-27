@@ -99,6 +99,7 @@ PREGAME LOOP (ON SOCKET 1) {
         }
         ON [0x01] {
             // HOST is starting the game
+            C>H: 0x01 // CLIENT is ready to start
             H>C: u1 W {RESTRICT 1 <= W <= 26} // board width
             H>C: u1 H {RESTRICT 1 <= H <= 26} // board height
             H>C: u1 P {RESTRICT 2 <= P <= 6} // player count

@@ -437,10 +437,18 @@ public class Host {
                 countdown.await();
                 return;
             } else if (line.equalsIgnoreCase("start")) {
+                if (players.isEmpty()) {
+                    System.out.println("cannot start game without any players");
+                    continue;
+                }
                 itcw = getRestrictNum("Enter width: ", 1, 26);
                 if (itcw < 1) continue;
                 itch = getRestrictNum("Enter height: ", 1, 26);
                 if (itch < 1) continue;
+                if (itcw == 1 && itch == 1) {
+                    System.out.println("1 x 1 boards are not possible");
+                    continue;
+                }
                 gamestate = 1;
                 itcp = players.size();
                 game = new Game(itcw, itch, itcp);
@@ -582,6 +590,7 @@ public class Host {
         }
     }
     private static void preloop(Player player) throws Exception {
+        InputStream sIn = player.conn.s1I;
         OutputStream sOut = player.conn.s1O;
         synchronized(players) {
             for (Player p : players.values()) {
@@ -624,6 +633,7 @@ public class Host {
                     return;
                 case 1: {
                     sOut.write(1);
+                    read(sIn);
                     sOut.write(itcw);
                     sOut.write(itch);
                     sOut.write(itcp);

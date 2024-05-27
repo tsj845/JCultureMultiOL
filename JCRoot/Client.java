@@ -6,13 +6,11 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import JCRoot.game.Board;
-import JCRoot.game.Color;
-import JCRoot.game.Team;
-// import JCRoot.game.Team;
-import JCRoot.game.Teams;
+import JCRoot.game.*;
+import JCRoot.menu.*;
 
 public class Client {
     private static int pnum = -1;
@@ -24,10 +22,11 @@ public class Client {
     private static InputStream sIn, s2In;
     private static OutputStream sOut, s2Out;
     private static int gamestate = 0;
-    private static boolean exiting = false;
+    private static boolean exiting = false, ready = true;
     private static int needInput = 0;
     private static LinkedBlockingQueue<String> inputs = new LinkedBlockingQueue<>();
-    private static final Object EXIT_LOCK = new Object();
+    private static final Object EXIT_LOCK = new Object(), READY_LOCK = new Object();
+    private static CountDownLatch countdown = null;
     private static int read(InputStream in) throws Exception {
         int r = in.read();
         if (r < 0) crash();
@@ -37,7 +36,7 @@ public class Client {
         if (in.read(buf) != buf.length) crash();
         return buf.length;
     }
-    private static boolean confirm(InetAddress addr, int port) {
+    private static boolean confirmJoin(InetAddress addr, int port) {
         try (Socket sock = new Socket(addr, port)) {
             OutputStream sOut = sock.getOutputStream();
             InputStream sIn = sock.getInputStream();
@@ -75,6 +74,22 @@ public class Client {
             return true;
         }
     }
+    private static void options() throws Exception {
+        MENU.setState(Menu.TOP);
+        while (true) {
+            MInputData mid = MENU.run(sc);
+            if (mid.isNULL()) {
+                continue;
+            }
+            if (mid.isEXIT()) {
+                return;
+            }
+            ItemData itemd = (ItemData)mid.data;
+            if (itemd.iid == BOARD_COMPACT) {
+                Board.compact = itemd.getToggleState();
+            }
+        }
+    }
     private static void cli() throws Exception {
         while (true) {
             String inp = sc.nextLine();
@@ -97,6 +112,16 @@ public class Client {
                     sock2.close();
                     System.exit(0);
                 }
+                if (inp.equalsIgnoreCase("options")) {
+                    synchronized(READY_LOCK) {
+                        if (gamestate != 0) continue;
+                        ready = false;
+                        countdown = new CountDownLatch(1);
+                    }
+                    options();
+                    ready = true;
+                    countdown.countDown();
+                }
             }
         }
     }
@@ -117,7 +142,7 @@ public class Client {
         }
     }
     private static void start(InetAddress addr, int port) {
-        if (!confirm(addr, port)) return;
+        if (!confirmJoin(addr, port)) return;
         try (Socket ssock = new Socket(addr, port)) {
             Client.sock = ssock;
             sIn = sock.getInputStream();
@@ -167,7 +192,17 @@ public class Client {
                 return;
             }
             if (commcode == 1) {
-                System.out.println("HOST HAS STARTED THE GAME");
+                System.out.println("\nHOST HAS STARTED THE GAME");
+                synchronized(READY_LOCK) {
+                    if (ready) {
+                        gamestate = 1;
+                    }
+                }
+                if (gamestate != 1) {
+                    countdown.await();
+                }
+                gamestate = 1;
+                sOut.write(1);
                 board = new Board(read(sIn), read(sIn), read(sIn));
                 gameloop();
             }
@@ -220,6 +255,7 @@ public class Client {
             if (board.checkWinner() != -2) {
                 // System.out.printf("Team %s%s has won!\n", Teams.teams[board.checkWinner()], Color.DEFAULT);
                 System.out.printf("Team %s has won!\n", Teams.teams[board.checkWinner()]);
+                gamestate = 0;
                 return;
             }
             int ccode = read(sIn);
@@ -276,5 +312,18 @@ public class Client {
     public static void main(String[] args) throws Exception {
         Color.start();
         start(InetAddress.getByName(args[0]), Integer.parseInt(args[1]));
+    }
+    private static final Menu MENU;
+    private static final int
+    BOARD_COMPACT = 0;
+    static {
+        MenuFrame top = new MenuFrame("Client Options");
+        {
+            MenuFrame board = new MenuFrame("Board Options");
+            board.setAcceptNumbers(true);
+            board.addItem("compact mode", ItemData.Toggle(false).withIID(0));
+            top.addItem("board", ItemData.Group(board));
+        }
+        MENU = new Menu(top);
     }
 }
