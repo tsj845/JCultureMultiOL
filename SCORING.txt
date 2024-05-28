@@ -1,0 +1,13 @@
+points are accumulated in two ways:
+
+1:
+a player places a piece on a neutral tile
+  this grants one point, regardless of the number of pieces on that tile
+
+2:
+a player captures a tile that does not belong to them by toppling onto it
+  this grants points equal to the number of pieces on that tile
+
+notes:
+- yes, I am aware that these rules for scoring would favor toppling onto a neutral tile
+    if it were to somehow get more than one piece on it
