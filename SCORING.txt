@@ -8,6 +8,10 @@ a player places a piece on a neutral tile
 a player captures a tile that does not belong to them by toppling onto it
   this grants points equal to the number of pieces on that tile
 
+IMPL REQUIREMENT:
+toppling must immediately capture tiles, such that method 2 is not applicable more than
+once per tile per topple sequence
+
 notes:
 - yes, I am aware that these rules for scoring would favor toppling onto a neutral tile
     if it were to somehow get more than one piece on it
