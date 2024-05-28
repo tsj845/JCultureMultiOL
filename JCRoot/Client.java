@@ -87,6 +87,8 @@ public class Client {
             ItemData itemd = (ItemData)mid.data;
             if (itemd.iid == BOARD_COMPACT) {
                 Board.compact = itemd.getToggleState();
+            } else if (itemd.iid == BOARD_BRGHT_VOLATILE) {
+                Board.brightenVolatiles = itemd.getToggleState();
             }
         }
     }
@@ -203,6 +205,7 @@ public class Client {
                 }
                 gamestate = 1;
                 sOut.write(1);
+                Teams.reset();
                 board = new Board(read(sIn), read(sIn), read(sIn));
                 gameloop();
             }
@@ -255,6 +258,7 @@ public class Client {
             if (board.checkWinner() != -2) {
                 // System.out.printf("Team %s%s has won!\n", Teams.teams[board.checkWinner()], Color.DEFAULT);
                 System.out.printf("Team %s has won!\n", Teams.teams[board.checkWinner()]);
+                Board.scoreboard();
                 gamestate = 0;
                 return;
             }
@@ -315,13 +319,15 @@ public class Client {
     }
     private static final Menu MENU;
     private static final int
-    BOARD_COMPACT = 0;
+    BOARD_COMPACT = 0,
+    BOARD_BRGHT_VOLATILE = 1;
     static {
         MenuFrame top = new MenuFrame("Client Options");
         {
             MenuFrame board = new MenuFrame("Board Options");
             board.setAcceptNumbers(true);
-            board.addItem("compact mode", ItemData.Toggle(false).withIID(0));
+            board.addItem("compact mode", ItemData.Toggle(false).withIID(BOARD_COMPACT));
+            board.addItem("brighten volatiles", ItemData.Toggle(true).withIID(BOARD_BRGHT_VOLATILE));
             top.addItem("board", ItemData.Group(board));
         }
         MENU = new Menu(top);

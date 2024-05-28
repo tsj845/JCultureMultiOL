@@ -81,3 +81,20 @@ GROUNDWORK:
 ADDITIONS:
 - client may now use "options" to access the options menu,
   the "board" sub-menu allows the compact board display to be toggled
+
+05/28/2024 -- 8:54
+BUNDLED: "bundle update 2"
+MSG: "volatile highlights"
+ADDITIONS:
+- added ability to brighten volatile tiles
+- added client option to disable this feature
+
+05/28/2024 -- 10:42
+BUNDLED: "bundle update 2"
+MSG: "scoreboard"
+ADDITIONS:
+- added a scoreboard that ranks teams based on captures
+IMPROVEMENTS:
+- made blue team's color more readable
+GROUNDWORK:
+- made Game's player list mutable

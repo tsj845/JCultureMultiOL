@@ -20,6 +20,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import JCRoot.game.*;
+import JCRoot.menu.ItemData;
+import JCRoot.menu.MInputData;
+import JCRoot.menu.Menu;
+import JCRoot.menu.MenuFrame;
 
 public class Host {
     private static volatile int itcw=0, itch=0, itcp=0;
@@ -147,6 +151,7 @@ public class Host {
                 }
                 // System.out.printf("Team %s%s won!\n", Teams.teams[game.board.checkWinner()], Color.DEFAULT);
                 System.out.printf("Team %s won!\n", Teams.teams[game.board.checkWinner()]);
+                Board.scoreboard();
                 return;
             }
         }
@@ -403,6 +408,8 @@ public class Host {
             countdown.await();
         } else if (line.equalsIgnoreCase("tileset")) {
             tileset();
+        } else if (line.equalsIgnoreCase("options")) {
+            options();
         } else if (line.equalsIgnoreCase("help")) {
             System.out.println("HELP MENU");
             System.out.println(
@@ -451,6 +458,10 @@ public class Host {
                 }
                 gamestate = 1;
                 itcp = players.size();
+                Teams.reset();
+                for (Player p : players.values()) {
+                    Teams.teams[p.team.id].pcount ++;
+                }
                 game = new Game(itcw, itch, itcp);
                 countdown = new CountDownLatch(itcp);
                 for (Player p : players.values()) {
@@ -784,5 +795,34 @@ public class Host {
         servingThread.setDaemon(true);
         servingThread.start();
         cli();
+    }
+    private static void options() throws Exception {
+        MENU.setState(Menu.TOP);
+        while (true) {
+            MInputData mid = MENU.run(sc);
+            if (mid.isNULL()) {
+                continue;
+            }
+            if (mid.isEXIT()) {
+                return;
+            }
+            ItemData itemd = (ItemData)mid.data;
+            if (itemd.iid == GRULES_SERVER) {
+                GR_server = itemd.getToggleState();
+            }
+        }
+    }
+    private static boolean GR_server = false;
+    private static final Menu MENU;
+    private static final int
+    GRULES_SERVER = 0;
+    static {
+        MenuFrame top = new MenuFrame("Host Options");
+        {
+            MenuFrame rules = new MenuFrame("Game Rules");
+            top.addItem("game rules", ItemData.Group(rules));
+            rules.addItem("server mode", ItemData.Toggle(GR_server).withIID(GRULES_SERVER));
+        }
+        MENU = new Menu(top);
     }
 }

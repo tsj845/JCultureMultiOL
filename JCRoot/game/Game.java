@@ -1,13 +1,18 @@
 package JCRoot.game;
 
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+
 import JCRoot.Host;
 
 public class Game {
     public final int width, height, players;
     public final Board board;
-    public int[] plist = Host.players.navigableKeySet().stream().mapToInt(e->e).toArray();
+    public ArrayList<Integer> plist = new ArrayList<>(Host.players.navigableKeySet().stream().collect(Collectors.toList()));
+    // public int[] plist = Host.players.navigableKeySet().stream().mapToInt(e->e).toArray();
     public int pindex = 0;
-    public int cplayer = plist[pindex];
+    // public int cplayer = plist[pindex];
+    public int cplayer = plist.get(pindex);
     public Game(int w, int h, int p) {
         width = w;
         height = h;
@@ -35,9 +40,11 @@ public class Game {
         if (board.checkWinner() < 0) {
             do {
                 pindex ++;
-                pindex = pindex % plist.length;
-                cplayer = plist[pindex];
-            } while (!canMove(cplayer));
+                // pindex = pindex % plist.length;
+                // cplayer = plist[pindex];
+                pindex = pindex % plist.size();
+                cplayer = plist.get(pindex);
+            } while (!canMove(Host.players.get(cplayer).team.id));
         }
     }
 }

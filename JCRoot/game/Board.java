@@ -6,7 +6,7 @@ import java.util.Scanner;
 public class Board {
     public static LinkedList<char[]> tilesets = new LinkedList<>();
     public static int CHARI = 0;
-    public static boolean compact = false;
+    public static boolean compact = false, brightenVolatiles = true;
     static {
         tilesets.add(new char[]{'!', '-', '+', '#', 'N', 'N'});
         tilesets.add(new char[]{'!', '-', '+', 'Y', 'X', 'N'});
@@ -16,7 +16,6 @@ public class Board {
     public int chari = Board.CHARI;
     public final int w, h, p;
     public Cell[][] board;
-    public Color gray = new Color(-1);
     public Board(int w, int h, int p) {
         this.w = w;
         this.h = h;
@@ -68,6 +67,9 @@ public class Board {
         getNeighbors(x, y, toTopple);
         while (!toTopple.isEmpty()) {
             Cell c = toTopple.removeLast();
+            if (c.team != team) {
+                Teams.teams[team].tscore += c.value;
+            }
             c.team = team;
             if (willTopple(c.x, c.y)) {
                 c.value = 1;
@@ -83,12 +85,22 @@ public class Board {
     }
     public void addTo(int x, int y, int team) {
         // System.out.println("ADDITION: " + x + ", " + y + " (" + team + ")");
+        if (board[y][x].team != team) {
+            Teams.teams[team].tscore ++;
+        }
         board[y][x].team = team;
         if (willTopple(x, y)) {
             topple(x, y, team);
         } else {
             board[y][x].value ++;
         }
+    }
+    private String getColor(int x, int y) {
+        if (Board.brightenVolatiles && willTopple(x, y)) {
+            return Color.VOLATILE_COLORS[board[y][x].team+1]+Color.HC_BACKGROUND;
+        }
+        // return Color.VOLATILE_COLORS[board[y][x].team+1];
+        return Color.NORMAL_COLORS[board[y][x].team+1];
     }
     public String toStringCompact() {
         String f = "   ";
@@ -99,7 +111,7 @@ public class Board {
         for (int y = 0; y < h; y ++) {
             f += String.format("%2d ", (y+1));
             for (int x = 0; x < w; x ++) {
-                f += String.format("%s%c%s ", new Color(board[y][x].team), charset[board[y][x].value], gray);
+                f += String.format("%s%c%s ", getColor(x, y), charset[board[y][x].value], Color.GRAY);
             }
             f += Color.DEFAULT;
             f += String.format("%d", (y+1));
@@ -121,7 +133,7 @@ public class Board {
         for (int y = 0; y < h; y ++) {
             f += String.format(" %2d  ", (y+1));
             for (int x = 0; x < w; x ++) {
-                f += String.format(" %s%c%s  ", new Color(board[y][x].team), charset[board[y][x].value], gray);
+                f += String.format(" %s%c%s  ", getColor(x, y), charset[board[y][x].value], Color.GRAY);
             }
             f += Color.DEFAULT;
             f += String.format(" %d ", (y+1));
@@ -133,9 +145,39 @@ public class Board {
         }
         return f;
     }
+    public static void scoreboard() {
+        System.out.printf("%sScore Board:\n", Color.DEFAULT);
+        Team[] steams = new Team[6];
+        for (int i = 0; i < 6; i ++) steams[i] = Teams.teams[i];
+        for (int i = 0; i < 6; i ++) {
+            int hscore = 0, hindex = i;
+            for (int j = i; j < 6; j ++) {
+                Team t = steams[j];
+                if (t.tscore > hscore) {
+                    hscore = t.tscore;
+                    hindex = j;
+                }
+            }
+            Team h = steams[i];
+            steams[i] = steams[hindex];
+            steams[hindex] = h;
+        }
+        for (int i = 0; i < 6; i ++) {
+            Team t = steams[i];
+            System.out.printf("#%d %s -- %d\n", (i+1), t, t.tscore);
+        }
+    }
     public static void main(String[] args) {
         Color.start();
-        Board b = new Board(15, 15, 3);
+        int team = args.length > 0 ? Integer.parseInt(args[0]) : 1;
+        compact = true;
+        Board b = new Board(3, 3, 3);
+        b.addTo(0, 0, team);
+        b.addTo(0, 0, team);
+        b.addTo(0, 0, team);
+        b.addTo(0, 0, team);
+        b.addTo(1, 1, team);
+        b.addTo(1, 1, team);
         Scanner sc = new Scanner(System.in);
         while (b.checkWinner() == -1) {
             System.out.println(b);

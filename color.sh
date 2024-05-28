@@ -1,0 +1,1 @@
+javac JCRoot/game/Color.java && java JCRoot/game/Color
