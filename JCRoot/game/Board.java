@@ -6,7 +6,7 @@ import java.util.Scanner;
 public class Board {
     public static LinkedList<char[]> tilesets = new LinkedList<>();
     public static int CHARI = 0;
-    public static boolean compact = false, brightenVolatiles = true;
+    public static boolean compact = false, brightenVolatiles = true, highlightMoves = true;
     static {
         tilesets.add(new char[]{'!', '-', '+', '#', 'N', 'N'});
         tilesets.add(new char[]{'!', '-', '+', 'Y', 'X', 'N'});
@@ -16,6 +16,7 @@ public class Board {
     public int chari = Board.CHARI;
     public final int w, h, p;
     public Cell[][] board;
+    private Cell lastMove = null;
     public Board(int w, int h, int p) {
         this.w = w;
         this.h = h;
@@ -85,6 +86,7 @@ public class Board {
     }
     public void addTo(int x, int y, int team) {
         // System.out.println("ADDITION: " + x + ", " + y + " (" + team + ")");
+        lastMove = board[y][x];
         if (board[y][x].team != team) {
             Teams.teams[team].tscore ++;
         }
@@ -96,11 +98,12 @@ public class Board {
         }
     }
     private String getColor(int x, int y) {
+        String hl = (Board.highlightMoves && lastMove != null) ? ((x==lastMove.x&&y==lastMove.y)?Color.HIGHLIGHT:"") : "";
         if (Board.brightenVolatiles && willTopple(x, y)) {
-            return Color.VOLATILE_COLORS[board[y][x].team+1]+Color.HC_BACKGROUND;
+            return Color.VOLATILE_COLORS[board[y][x].team+1]+Color.HC_BACKGROUND+hl;
         }
         // return Color.VOLATILE_COLORS[board[y][x].team+1];
-        return Color.NORMAL_COLORS[board[y][x].team+1];
+        return Color.NORMAL_COLORS[board[y][x].team+1]+hl;
     }
     public String toStringCompact() {
         String f = "   ";

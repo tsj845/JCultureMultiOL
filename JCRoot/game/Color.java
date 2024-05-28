@@ -7,6 +7,7 @@ public class Color {
     // public static final Color GRAY = new Color(-1);
     public static final String GRAY = Color.RAW(8)+"\u001b[48;5;0m";
     public static final String HC_BACKGROUND = "\u001b[48;5;235m"; // high contrast background color
+    public static final String HIGHLIGHT = "\u001b[48;5;238m"; // highlight background color
     public static final String[] NORMAL_COLORS = new String[]{
         Color.RAW(8),
         Color.RAW(160),

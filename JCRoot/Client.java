@@ -89,6 +89,8 @@ public class Client {
                 Board.compact = itemd.getToggleState();
             } else if (itemd.iid == BOARD_BRGHT_VOLATILE) {
                 Board.brightenVolatiles = itemd.getToggleState();
+            } else if (itemd.iid == BOARD_HIGHLIGHT_MOVE) {
+                Board.highlightMoves = itemd.getToggleState();
             }
         }
     }
@@ -301,6 +303,9 @@ public class Client {
             int col = read(sIn);
             int row = read(sIn);
             int team = read(sIn);
+            if (ccode != 1) {
+                System.out.printf(" %s%c%d%s\n", Teams.teams[team].color, board.alpha[col], (row+1), Color.DEFAULT);
+            }
             board.addTo(col, row, team);
         }
     }
@@ -320,7 +325,8 @@ public class Client {
     private static final Menu MENU;
     private static final int
     BOARD_COMPACT = 0,
-    BOARD_BRGHT_VOLATILE = 1;
+    BOARD_BRGHT_VOLATILE = 1,
+    BOARD_HIGHLIGHT_MOVE = 2;
     static {
         MenuFrame top = new MenuFrame("Client Options");
         {
@@ -328,6 +334,7 @@ public class Client {
             board.setAcceptNumbers(true);
             board.addItem("compact mode", ItemData.Toggle(false).withIID(BOARD_COMPACT));
             board.addItem("brighten volatiles", ItemData.Toggle(true).withIID(BOARD_BRGHT_VOLATILE));
+            board.addItem("highlight last move", ItemData.Toggle(true).withIID(BOARD_HIGHLIGHT_MOVE));
             top.addItem("board", ItemData.Group(board));
         }
         MENU = new Menu(top);

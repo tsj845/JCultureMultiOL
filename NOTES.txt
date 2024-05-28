@@ -98,3 +98,9 @@ IMPROVEMENTS:
 - made blue team's color more readable
 GROUNDWORK:
 - made Game's player list mutable
+
+05/28/2024 -- 11:40
+MSG: "highlights"
+IMPROVEMENTS:
+- client now shows what other client's move was
+- toggleable feature highlights the last move made
