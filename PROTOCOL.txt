@@ -87,6 +87,17 @@ PREGAME LOOP (ON SOCKET 2) {
             HOST SIGNALS OTHERS OF LEAVING PLAYER
             TERMINATE SOCKET
         }
+        ON [0x01] {
+            NOTE: this is NOT VALID when the game is running
+            POSSIBLE CONFLICT {
+                in the event that the Host attempts to start the game and this player
+                is in the options menu, then chooses to enter spectator mode,
+                this code shall not be sent, instead the READY code is altered
+                as described in PREGAME LOOP (ON SOCKET 1)
+            }
+            // CLIENT is toggling spectator mode
+            HOST SIGNALS OTHERS OF MODE CHANGE
+        }
     }
 }
 
@@ -99,7 +110,18 @@ PREGAME LOOP (ON SOCKET 1) {
         }
         ON [0x01] {
             // HOST is starting the game
-            C>H: 0x01 // CLIENT is ready to start
+            C>H: SPECTATING ? 0x02 : 0x01 READY CODE
+            //C>H: 0x01 READY code // CLIENT is ready to start
+            //POSSIBLE CONFLICT {
+            //    in the event the Host attempts to start the game and this player
+            //    chooses to enter spectator mode before sending the READY code,
+            //    the Client instead will send 0x02
+            //}
+            H>C: u1 SCNT // spectator count, number of players that are in
+                        // spectator mode
+            FOR EACH SPECTATOR {
+                H>C: u1 PID
+            }
             H>C: u1 W {RESTRICT 1 <= W <= 26} // board width
             H>C: u1 H {RESTRICT 1 <= H <= 26} // board height
             H>C: u1 P {RESTRICT 2 <= P <= 6} // player count
@@ -129,8 +151,27 @@ PREGAME LOOP (ON SOCKET 1) {
         ON [0x06] {
             do TILESET UPDATE
         }
+        ON [0x07] {
+            // spectating match because player joined as it was ongoing
+            NOTE: THIS CODE MAY ONLY BE SENT IN THE SCENARIO DESCRIBED ABOVE
+            NOTE: WHEN A PLAYER JOINS IN THIS WAY, NOTIFICATION OF OTHER PLAYERS IS DEFERRED
+            goto BOARD_TRANSFER
+            goto GAME_LOOP
+        }
     }
     goto PREGAME LOOP
+}
+
+BOARD_TRANSFER {
+    H>C: [u1, u1, u1] // width, height, and player count
+    NOTE: "JOIN ORDER" is defined as the order in which default team assignments are given
+            the order is as follows: RED, BLUE, GREEN, YELLOW, MAGENTA, CYAN
+    FOR EACH TEAM IN JOIN ORDER {
+        H>C: s32 SCORE
+    }
+    FOR ALL TILES {
+        H>C: [u1, u1] // value and team
+    }
 }
 
 TILESET UPDATE {

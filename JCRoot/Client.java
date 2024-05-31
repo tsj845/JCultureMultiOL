@@ -22,10 +22,10 @@ public class Client {
     private static InputStream sIn, s2In;
     private static OutputStream sOut, s2Out;
     private static int gamestate = 0;
-    private static boolean exiting = false, ready = true;
+    private static boolean exiting = false, ready = true, spectator_mode = false, host_waiting = false;
     private static int needInput = 0;
     private static LinkedBlockingQueue<String> inputs = new LinkedBlockingQueue<>();
-    private static final Object EXIT_LOCK = new Object(), READY_LOCK = new Object();
+    private static final Object EXIT_LOCK = new Object(), READY_LOCK = new Object(), WAIT_LOCK = new Object();
     private static CountDownLatch countdown = null;
     private static int read(InputStream in) throws Exception {
         int r = in.read();
@@ -91,6 +91,8 @@ public class Client {
                 Board.brightenVolatiles = itemd.getToggleState();
             } else if (itemd.iid == BOARD_HIGHLIGHT_MOVE) {
                 Board.highlightMoves = itemd.getToggleState();
+            } else if (itemd.iid == MISC_SPECTATOR) {
+                spectator_mode = itemd.getToggleState();
             }
         }
     }
@@ -206,7 +208,12 @@ public class Client {
                     countdown.await();
                 }
                 gamestate = 1;
-                sOut.write(1);
+                if (spectator_mode) {
+                    sOut.write(2);
+                    System.out.printf("you (\"%s\") are spectating this game\n", players.get(pnum).name);
+                } else {
+                    sOut.write(1);
+                }
                 Teams.reset();
                 board = new Board(read(sIn), read(sIn), read(sIn));
                 gameloop();
@@ -252,7 +259,13 @@ public class Client {
                     Board.tilesets.add(set);
                 }
             }
+            if (commcode == 7) {
+                Teams.reset();
+                receiveBoard();
+            }
         }
+    }
+    private static void receiveBoard() throws Exception {
     }
     private static void gameloop() throws Exception {
         while (true) {
@@ -326,7 +339,8 @@ public class Client {
     private static final int
     BOARD_COMPACT = 0,
     BOARD_BRGHT_VOLATILE = 1,
-    BOARD_HIGHLIGHT_MOVE = 2;
+    BOARD_HIGHLIGHT_MOVE = 2,
+    MISC_SPECTATOR = 3;
     static {
         MenuFrame top = new MenuFrame("Client Options");
         {
@@ -336,6 +350,11 @@ public class Client {
             board.addItem("brighten volatiles", ItemData.Toggle(true).withIID(BOARD_BRGHT_VOLATILE));
             board.addItem("highlight last move", ItemData.Toggle(true).withIID(BOARD_HIGHLIGHT_MOVE));
             top.addItem("board", ItemData.Group(board));
+        }
+        {
+            MenuFrame misc = new MenuFrame("Miscellaneous Options");
+            misc.setAcceptNumbers(true);
+            misc.addItem("spectator mode", ItemData.Toggle(false).withIID(MISC_SPECTATOR));
         }
         MENU = new Menu(top);
     }

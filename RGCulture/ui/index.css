@@ -1,0 +1,24 @@
+:root {
+    --modal-back-color: #0004;
+}
+
+.modal-back:not(.open) {
+    display: none;
+}
+
+.modal-back.open {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--modal-back-color);
+    z-index: var(--z-ind, 1);
+}
+
+.modal-back > .modal-front {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    transform: translate(-50%, -50%);
+}
