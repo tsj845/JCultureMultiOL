@@ -1,9 +1,4 @@
 /**
- * @typedef ModalElement
- * @type {HTMLDivElement}
- */
-
-/**
  * checks if the given element is actually a modal
  * @param {HTMLElement} modal element to check
  * @returns {boolean}

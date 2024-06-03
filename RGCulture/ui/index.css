@@ -2,6 +2,10 @@
     --modal-back-color: #0004;
 }
 
+body {
+    background-color: #000;
+}
+
 .modal-back:not(.open) {
     display: none;
 }
@@ -21,4 +25,51 @@
     left: 50vw;
     top: 50vh;
     transform: translate(-50%, -50%);
+}
+
+#game-area {
+    --max-width: 58vw;
+    --max-height: 98vh;
+    --sw: calc(var(--max-width) / var(--cw));
+    --sh: calc(var(--max-height) / var(--ch));
+    --s: min(var(--sw), var(--sh));
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+#game-board {
+    position: absolute;
+    left: 1vw;
+    top: 1vh;
+    --gas: min(calc(var(--s)*var(--ch)),calc(var(--s)*var(--cw)));
+    border: solid 2px white;
+    width: var(--gas);
+    height: var(--gas);
+    display: grid;
+    grid-template-columns: repeat(var(--cw), var(--s));
+    grid-template-rows: repeat(var(--ch), var(--s));
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    cursor: default;
+}
+
+.board-space {
+    width: var(--s);
+    height: var(--s);
+    display: grid;
+    grid-template-rows: 100%;
+    grid-template-columns: 100%;
+}
+.board-space:hover {
+    background-color: #fffa;
+}
+
+.board-space > .board-space-text {
+    align-self: center;
+    justify-self: center;
+    color: var(--color);
+}
+.board-space:hover > .board-space-text {
+    color: white;
 }
