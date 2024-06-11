@@ -1,3 +1,5 @@
+const modalStack = [];
+
 /**
  * checks if the given element is actually a modal
  * @param {HTMLElement} modal element to check
@@ -21,6 +23,7 @@ function showModal(modal) {
         throw new TypeError("must be modal");
     }
     modal.classList.add("open");
+    modalStack.push(modal);
 }
 
 /**
@@ -34,4 +37,16 @@ function hideModal(modal) {
         throw new TypeError("must be modal");
     }
     modal.classList.remove("open");
+    if (modalStack.includes(modal)) {
+        modalStack.splice(modalStack.indexOf(modal), 1);
+    }
 }
+
+document.addEventListener("keyup", (e) => {
+    let k = e.code.toString();
+    if (k === "Escape") {
+        if (modalStack.length > 0) {
+            hideModal(modalStack[modalStack.length-1]);
+        }
+    }
+});

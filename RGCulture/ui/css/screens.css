@@ -1,0 +1,18 @@
+body:not(.screen-splash) > #splash {
+    display: none;
+}
+body.screen-splash > *:not(#splash) {
+    display: none;
+}
+body:not(.screen-servers) > #servers {
+    display: none;
+}
+body.screen-servers > *:not(#servers) {
+    display: none;
+}
+body:not(.screen-play) > #play {
+    display: none;
+}
+body.screen-play > *:not(#play) {
+    display: none;
+}

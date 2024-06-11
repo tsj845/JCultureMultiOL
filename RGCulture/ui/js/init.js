@@ -3,6 +3,9 @@ const gameArea = document.getElementById("game-area");
 /**@type {HTMLDivElement} */
 const gameBoard = gameArea.children[0];
 
+/**@type {Board} */
+let playBoard = null;
+
 /**
  * replaces the current board with a new one of the given dimensions
  * @param {number} width
@@ -20,6 +23,7 @@ function initBoard(width, height, hook) {
     if (width > MAX_SIZE || height > MAX_SIZE) {
         throw new Error("width and height cannot be greater than maximum size");
     }
+    playBoard = new Board(width, height);
     if (!hook && DEBUG_MODE) {
         hook = (x,y)=>{console.log(`board click: ${x}, ${y}`);};
     }
@@ -27,18 +31,24 @@ function initBoard(width, height, hook) {
     gameBoard.replaceChildren();
     gameArea.style.cssText = `--cw:${width};--ch:${height};`;
     for (let y = 0; y < height; y ++) {
-        for (let x = 0; x < height; x ++) {
+        for (let x = 0; x < width; x ++) {
             let c = document.createElement("div");
             c.classList.add("board-space");
             c.style.cssText = `--x:${x};--y:${y};--color:${normal_colors["-1"]};`;
             if (hook) {
                 c.addEventListener("click", ()=>{hook(x,y);});
             }
-            let ct = document.createElement("span");
-            ct.textContent = csetraw[0];
-            ct.classList.add("board-space-text");
-            c.appendChild(ct);
+            // let ct = document.createElement("span");
+            // ct.textContent = csetraw[0];
+            // ct.classList.add("board-space-text");
+            let e = produceBoardDisplay(1);
+            c.appendChild(e);
             gameBoard.appendChild(c);
+        }
+    }
+    for (let y = 0; y < height; y ++) {
+        for (let x = 0; x < width; x ++) {
+            setBoardDisplayTeam(x, y, -1);
         }
     }
 }

@@ -4,7 +4,7 @@
 mod common;
 mod comm;
 mod rt;
-use std::env::args;
+use std::{env::args, fs};
 
 use comm::entry;
 use tauri::Manager;
@@ -19,10 +19,17 @@ fn get_is_debug() -> bool {
     args().any(|e|{e=="--dbg-ui"})
 }
 
+#[tauri::command]
+fn fetch_content(path: &str) -> String {
+    let p = String::from("../ui/")+path;
+    // println!("{p}");
+    // println!("{}", fs::canonicalize(&p).unwrap().display());
+    fs::read_to_string(p).unwrap()
+}
+
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![greet])
-    .invoke_handler(tauri::generate_handler![get_is_debug])
+    .invoke_handler(tauri::generate_handler![fetch_content, get_is_debug])
     .setup(|app| {
         let h = app.handle();
         app.get_window("main").unwrap().listen("close", move |_|{h.exit(0)});

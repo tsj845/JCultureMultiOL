@@ -1,0 +1,82 @@
+/* splash screen stuff */
+#splash {
+    /* display: flex;
+    flex-direction: column; */
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr;
+    height: 30vh;
+    align-items: center;
+    justify-items: center;
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    transform: translate(-50%,-50%);
+}
+#splash svg.title-button {
+    height: calc(30vh / 3);
+}
+svg.title-button text {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+    font-family: monospace;
+}
+svg.title-button g:hover path {
+    fill: #333;
+    stroke: #bbb;
+}
+svg.title-button g:hover text {
+    fill: #bbb;
+}
+svg.title-button g:active path {
+    fill: #222;
+    stroke: #bbb;
+}
+svg.title-button g:active text {
+    fill: #bbb;
+}
+svg#ss-play-button g {
+    transform-origin: 19px 48px;
+}
+svg#ss-quit-button g {
+    transform-origin: 21px 50px;
+}
+svg#ss-options-button g {
+    transform-origin: 45px 50px;
+}
+svg.title-button.rotate g:hover {
+    transform: rotate(-1.5deg);
+}
+svg.title-button.rotate g:active {
+    transform: rotate(-2deg);
+}
+
+#splash:not(.S--quitconf) > #ss-quit-conf {
+    display: none;
+}
+
+#splash > #ss-quit-conf {
+    z-index: 1;
+    position: absolute;
+    /* left: 50vw;
+    top: 50vh;
+    transform: translate(-50%, -50%); */
+    background-color: #2222;
+    width: 100vw;
+    height: 100vh;
+}
+
+#splash #ss-qc-mcont {
+    position: absolute;
+    left: 50vw;
+    top: 50vh;
+    transform: translate(-50%, -50%);
+    background-color: #333;
+    padding: 4px;
+    border: solid #ddd 2px;
+}
+
+#splash #ss-qc-yn-container {
+    display: flex;
+    justify-content: space-around;
+}

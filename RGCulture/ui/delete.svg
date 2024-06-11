@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 54 21" version="1.1" class="sl-ctrl-button" id="sl-dele-button">
+    <g>
+    <path d="M 6,39.5 H 48 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+    <text x="27" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+        Delete
+    </text>
+    </g>
+</svg>

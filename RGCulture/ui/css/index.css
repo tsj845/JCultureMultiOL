@@ -2,6 +2,17 @@
     --modal-back-color: #0004;
 }
 
+* {
+    color: white;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+}
+
+input[type="button"] {
+    background-color: black;
+}
+
 body {
     background-color: #000;
 }
@@ -11,6 +22,7 @@ body {
 }
 
 .modal-back.open {
+    display: block !important;
     position: absolute;
     left: 0px;
     top: 0px;
@@ -41,10 +53,9 @@ body {
     position: absolute;
     left: 1vw;
     top: 1vh;
-    --gas: min(calc(var(--s)*var(--ch)),calc(var(--s)*var(--cw)));
+    width: calc(var(--s)*var(--cw));
+    height: calc(var(--s)*var(--ch));
     border: solid 2px white;
-    width: var(--gas);
-    height: var(--gas);
     display: grid;
     grid-template-columns: repeat(var(--cw), var(--s));
     grid-template-rows: repeat(var(--ch), var(--s));
@@ -69,6 +80,15 @@ body {
     align-self: center;
     justify-self: center;
     color: var(--color);
+}
+.board-space > iframe {
+    width: inherit;
+    height: inherit;
+    border: none;
+    pointer-events: none;
+}
+.board-space > iframe.board-space-text svg > .svg-fill-color {
+    fill: var(--color);
 }
 .board-space:hover > .board-space-text {
     color: white;

@@ -1,6 +1,6 @@
 // provides common data types, constants, and data
 
-use std::alloc::Layout;
+use std::{alloc::Layout, fmt::{Debug, Display}};
 
 pub use serde::{Serialize, Deserialize};
 pub type TResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -34,8 +34,67 @@ impl GameError {
         Self{}
     }
     pub fn boxed() -> Box<Self> {
-        Box::new(Self{})
+        Box::new(Self::new())
     }
+}
+
+macro_rules! DISP {
+    ($sn:ident) => {
+        impl std::fmt::Display for $sn {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(&format!("{:?}", self))
+            }
+        }
+        impl std::error::Error for $sn {}
+    };
+}
+
+#[derive(Debug)]
+pub struct InvarError {}
+DISP!(InvarError);
+impl InvarError {
+    pub fn new() -> Self{Self{}}
+    pub fn boxed() -> Box<Self> {Box::new(Self::new())}
+}
+
+#[derive(Debug)]
+pub struct ConnError {}
+impl std::fmt::Display for ConnError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:?}", self))
+    }
+}
+impl std::error::Error for ConnError {}
+impl ConnError {
+    pub fn new() -> Self {Self{}}
+    pub fn boxed() -> Box<Self> {Box::new(Self::new())}
+}
+
+#[derive(Debug)]
+/// for when the user cancels something, not an actual error, just a way to represent a user cancelling an interaction
+pub struct CancellationError {}
+impl std::fmt::Display for CancellationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:?}", self))
+    }
+}
+impl std::error::Error for CancellationError {}
+impl CancellationError {
+    pub fn new() -> Self{Self{}}
+    pub fn boxed() -> Box<Self> {Box::new(Self::new())}
+}
+
+#[derive(Debug)]
+pub struct GenErr<T: Debug> {pub src: T}
+impl<T: Debug> std::fmt::Display for GenErr<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:?}", self))
+    }
+}
+impl<T: Debug> std::error::Error for GenErr<T> {}
+impl<T: Debug> GenErr<T> {
+    pub fn new(src: T) -> Self{Self{src}}
+    pub fn boxed(src: T) -> Box<Self> {Box::new(Self::new(src))}
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

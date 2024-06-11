@@ -4,22 +4,137 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <link rel="stylesheet" type="text/css" href="./index.css" />
+    <link rel="stylesheet" type="text/css" href="./css/index.css" />
+    <link rel="stylesheet" type="text/css" href="./css/screens.css" />
+    <link rel="stylesheet" type="text/css" href="./css/splash.css" />
+    <link rel="stylesheet" type="text/css" href="./css/options.css" />
+    <link rel="stylesheet" type="text/css" href="./css/servers.css" />
   </head>
-  <body>
+  <body class="screen-servers">
+    <!-- title screen -->
+    <div id="splash">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 38 21" version="1.1" class="title-button rotate" id="ss-play-button">
+            <g>
+            <path d="M 6,39.5 H 32 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+            <text x="19" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                PLAY
+            </text>
+            </g>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 39 64 21" version="1.1" class="title-button rotate" id="ss-options-button">
+            <g>
+            <path d="M 6,41.5 H 58 q 5, 0 5, 5 V 52.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 46.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+            <text x="32" y="50" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                OPTIONS
+            </text>
+            </g>
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 38 21" version="1.1" class="title-button rotate" id="ss-quit-button">
+            <g>
+            <path d="M 6,39.5 H 32 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+            <text x="19" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                QUIT
+            </text>
+            </g>
+        </svg>
+        <div id="ss-quit-conf">
+            <div id="ss-qc-mcont">
+                Are you sure you want to quit?<br>
+                <div id="ss-qc-yn-container">
+                    <input type="button" value="yes" id="ss-qc-yes">
+                    <input type="button" value="no" id="ss-qc-no">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="options-modal" class="modal-back">
+        <div class="modal-front">
+            <div class="opt-groups">
+                <div class="opt-group">
+                    <span class="opt-group-name">Board Options</span>
+                    <div class="opt-list">
+                        <div class="option">
+                            <span>Compact Board</span>
+                            <input type="checkbox" id="mopts-compact-board">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <input type="button" value="done" id="mopt-done-button">
+        </div>
+    </div>
+    <div id="servers">
+        <div id="sl-text">
+            SERVER LIST
+        </div>
+        <div style="color:transparent !important;">HI</div>
+        <div id="sl-bb-cont">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 38 21" version="1.1" class="title-button" id="sl-back-button">
+                <g>
+                <path d="M 6,39.5 H 32 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+                <text x="19" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                    BACK
+                </text>
+                </g>
+            </svg>
+        </div>
+        <div id="server-list"></div>
+        <div id="server-controls">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 38 21" version="1.1" class="sl-ctrl-button" id="sl-join-button">
+                <g>
+                <path d="M 6,39.5 H 32 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+                <text x="19" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                    Join
+                </text>
+                </g>
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 38 21" version="1.1" class="sl-ctrl-button" id="sl-edit-button">
+                <g>
+                <path d="M 6,39.5 H 32 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+                <text x="19" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                    Edit
+                </text>
+                </g>
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 54 21" version="1.1" class="sl-ctrl-button" id="sl-dele-button">
+                <g>
+                <path d="M 6,39.5 H 48 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+                <text x="27" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                    Delete
+                </text>
+                </g>
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 37 54 21" version="1.1" class="sl-ctrl-button" id="sl-crea-button">
+                <g>
+                <path d="M 6,39.5 H 48 q 5, 0 5, 5 V 50.5 q 0, 5 -5, 5 H 6 q -5, 0 -5, -5 V 44.5 q 0, -5 5, -5" fill="#111" stroke="#ccc"/>
+                <text x="27" y="48" text-anchor="middle" alignment-baseline="central" fill="#ccc" font-family="monospace">
+                    Create
+                </text>
+                </g>
+            </svg>
+        </div>
+    </div>
     <div class="modal-back" id="password-modal">
         <div class="modal-front">
             <input type="text" placeholder="password: "><input type="button" value="submit">
         </div>
     </div>
-    <div id="game-area">
-        <div id="game-board"></div>
+    <div id="play">
+        <div id="game-area">
+            <div id="game-board"></div>
+        </div>
     </div>
-    <script src="./types.js"></script>
-    <script src="./utils.js"></script>
-    <script src="./data.js"></script>
-    <script src="./init.js"></script>
-    <script src="./modal.js"></script>
-    <script src="./index.js"></script>
+    <script src="./js/types.js"></script>
+    <script src="./js/game.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/menus.js"></script>
+    <script src="./js/data.js"></script>
+    <script src="./js/init.js"></script>
+    <script src="./js/modal.js"></script>
+    <script src="./js/index.js"></script>
+    <script src="./js/glue.js"></script>
+    <script src="./js/ui/screens.js"></script>
+    <script src="./js/ui/options.js"></script>
+    <script src="./js/ui/servers.js"></script>
   </body>
 </html>

@@ -1,0 +1,101 @@
+#servers {
+    --li-width: 76vw;
+}
+#servers > #sl-text {
+    font-size: 2em;
+    position: absolute;
+    left: 50vw;
+    top: 0vh;
+    transform: translateX(-50%);
+}
+#servers > #sl-bb-cont {
+    /* position: absolute; */
+    height: 1.5em;
+    /* left: 0px; */
+    /* top: 0px; */
+}
+#servers > #sl-bb-cont > svg {
+    aspect-ratio: 38/21;
+    height: inherit;
+}
+
+#servers > #server-list {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 60px;
+    width: var(--li-width);
+    height: calc(100vh - 60px - 100px);
+    /* left: calc(50vw - var(--li-width) / 2); */
+    left: 50vw;
+    transform: translateX(-50%);
+}
+
+#server-list > .server-info {
+    display: flex;
+    border: solid #ddd 2px;
+    width: 100%;
+}
+
+#server-list > .server-info.S--active {
+    border: solid #aaa 2px;
+}
+
+#server-list > .server-info > .slsi-bigchar {
+    margin-right: 1ex;
+    margin-left: 5px;
+    font-size: 3em;
+}
+#server-list > .server-info > .slsi-icont {
+    display: flex;
+    flex-direction: column;
+    width: -webkit-fill-available;
+    justify-content: space-around;
+    margin-right: 1ex;
+}
+#server-list > .server-info > .slsi-icont > .slsiic-row1 {
+    display: flex;
+    justify-content: space-between;
+}
+#server-list > .server-info > .slsi-icont > .slsiic-row1 > .slsiic-pcnt.S--unknown {
+    font-size: 1.25em;
+}
+#server-list > .server-info > .slsi-icont > .slsiic-row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+#server-list > .server-info > .slsi-icont > .slsiic-row2 > .slsiic-vers {
+    justify-self: center;
+}
+#server-list > .server-info > .slsi-icont > .slsiic-row2 > .slsiic-date {
+    justify-self: right;
+}
+
+#servers > #server-controls {
+    position: absolute;
+    /* left: calc(50vw - var(--li-width) / 2); */
+    left: 50vw;
+    transform: translateX(-50%);
+    bottom: 0px;
+    width: var(--li-width);
+    height: 100px;
+}
+
+#server-controls > .sl-ctrl-button {
+    height: 30px;
+}
+
+svg.sl-ctrl-button g:hover path {
+    fill: #333;
+    stroke: #bbb;
+}
+svg.sl-ctrl-button g:hover text {
+    fill: #bbb;
+}
+svg.sl-ctrl-button g:active path {
+    fill: #222;
+    stroke: #bbb;
+}
+svg.sl-ctrl-button g:active text {
+    fill: #bbb;
+}

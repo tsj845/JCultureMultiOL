@@ -184,6 +184,7 @@ TILESET UPDATE {
 
 GAME LOOP {
     H>P: 0x01 // signal it's that player's turn
+    OR
     H>!P: 0x00 // signal to others that it's not their turn
     P>H: [u1, u1] POSITION
     IF [VALID POSITION] {

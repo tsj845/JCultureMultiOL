@@ -1,0 +1,20 @@
+#options-modal > .modal-front {
+    width: 50vw;
+}
+
+#options-modal .opt-group > .opt-group-name {
+    font-size: 1.5em;
+    margin-bottom: 5px;
+    color: #ccc;
+}
+
+#options-modal .opt-group > .opt-list > .option {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.125em;
+    margin-left: 1ex;
+}
+
+#options-modal > .modal-front > .opt-groups {
+    margin-bottom: 5px;
+}

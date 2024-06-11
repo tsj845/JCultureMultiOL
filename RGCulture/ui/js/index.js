@@ -25,7 +25,12 @@ listen("prompt-password", (_) => {
     showModal(pwModal.modal);
 });
 
+// listen("create-board", (ev) => {
+//     initBoard(ev.payload["w"], ev.payload["h"], (x,y)=>{emit("board-input", {x:x,y:y});});
+// });
+
 window.addEventListener("load", async () => {
+    await loadAllSvgs();
     emit("window-ready", "");
     DEBUG_MODE = await invoke("get_is_debug", "");
     if (DEBUG_MODE) {
