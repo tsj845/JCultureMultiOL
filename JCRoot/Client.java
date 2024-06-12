@@ -48,8 +48,14 @@ public class Client {
             boolean hasPass = read(sIn) > 0;
             byte[] buf = new byte[read(sIn)];
             read(sIn, buf);
-            byte[] vbuf = new byte[6];
-            read(sIn, buf);
+            int[] vbuf = new int[6];
+            // read(sIn, vbuf);
+            vbuf[0] = read(sIn);
+            vbuf[1] = read(sIn);
+            vbuf[2] = read(sIn);
+            vbuf[3] = read(sIn);
+            vbuf[4] = read(sIn);
+            vbuf[5] = read(sIn);
             protver[0] = ((((int)vbuf[0])&0xff)<<8)|(vbuf[1]&0xff);
             protver[1] = ((((int)vbuf[2])&0xff)<<8)|(vbuf[3]&0xff);
             protver[2] = ((((int)vbuf[4])&0xff)<<8)|(vbuf[5]&0xff);
