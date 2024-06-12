@@ -27,6 +27,7 @@ GET SERVER DATA {
     H>C: bool PASS // if the host requires a password
     H>C: u1 HLEN // host name length
     H>C: <HLEN> // host name buffer
+    H>C: [u2, u2, u2] // {MAJ}.{SEG}.{MIN} <- version number
     TERMINATE SOCKET
 }
 
@@ -124,6 +125,7 @@ PREGAME LOOP (ON SOCKET 1) {
             }
             H>C: u1 W {RESTRICT 1 <= W <= 26} // board width
             H>C: u1 H {RESTRICT 1 <= H <= 26} // board height
+            !!V0.0.1EXCLUSIVE
             H>C: u1 P {RESTRICT 2 <= P <= 6} // player count
             goto GAME LOOP
         }

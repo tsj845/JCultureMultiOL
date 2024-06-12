@@ -3,6 +3,23 @@ const DOMServerList = document.getElementById("server-list");
 
 document.getElementById("sl-back-button").children[0].addEventListener("click", () => {setScreen(0);setActiveCard(null);});
 
+/**@type {HTMLDivElement} */
+const DOMServerControls = document.getElementById("server-controls");
+
+listen("join-server-failed", (ev)=>{console.log(ev.payload);});
+DOMServerControls.children[0].addEventListener("click", () => {
+    console.log(currActiveCard);
+    if (currActiveCard !== null) {
+        const cid = getCardId(currActiveCard);
+        /**@type {ServerCardData} */
+        const scd = serverCardMap[cid][0];
+        /**@type {string} */
+        let ad = scd["addr"];
+        once("confirm-server", (_)=>{console.log("CONFIRMING");emit("server-confirmed", "false");});
+        emit("join-server", {"cdat":{"addr":ad.slice(0, ad.indexOf(":")),"port":Number(ad.slice(ad.indexOf(":")+1))},"name":"TR1"});
+    }
+});
+
 const serverCardMap = {};
 
 /**
@@ -97,6 +114,7 @@ function setServerCardPlayerCounts(card, curr, max) {
     const pcnt = card.children[1].children[0].children[1];
     pcnt.textContent = `${curr}/${max}`;
     pcnt.classList.remove("S--unknown");
+    serverCardMap[getCardId(card)][0]["pcnt"] = [curr, max];
 }
 
 /**
@@ -109,6 +127,7 @@ function setServerCardLastPlayed(card, time) {
     /**@type {HTMLSpanElement} */
     const lpe = card.children[1].children[1].children[2];
     lpe.textContent = `Last Played: ${time} ago`;
+    serverCardMap[getCardId(card)][0]["date"] = time;
 }
 
 /**
@@ -158,11 +177,32 @@ function serverCardClick(cardId) {
     setActiveCard(cardElem);
 }
 
-const dummyCard = createServerCard({"name":"DUMMY","addr":"0.0.0.0:8000","protver":"N/A"});
-setServerCardPlayerCounts(dummyCard, 0, 0);
-setServerCardLastPlayed(dummyCard, "1 year");
-DOMServerList.appendChild(dummyCard);
-const dummyCard2 = createServerCard({"name":"DUMMY","addr":"127.0.0.1:8000","protver":"N/A"});
-setServerCardPlayerCounts(dummyCard2, 0, 0);
-setServerCardLastPlayed(dummyCard2, "1 year");
-DOMServerList.appendChild(dummyCard2);
+// const dummyCard = createServerCard({"name":"DUMMY","addr":"0.0.0.0:8000","protver":"N/A"});
+// setServerCardPlayerCounts(dummyCard, 0, 0);
+// setServerCardLastPlayed(dummyCard, "1 year");
+// DOMServerList.appendChild(dummyCard);
+// const dummyCard2 = createServerCard({"name":"DUMMY","addr":"127.0.0.1:8000","protver":"N/A"});
+// setServerCardPlayerCounts(dummyCard2, 0, 0);
+// setServerCardLastPlayed(dummyCard2, "1 year");
+// DOMServerList.appendChild(dummyCard2);
+
+async function fetch_servers() {
+    const m = JSON.parse(await invoke("fetch_servers", {}));
+    for (const key in m) {
+        // serverCardMap[key] = m[key];
+        const cardD = m[key][0];
+        const cardobj = createServerCard(cardD);
+        // serverCardMap[key][1] = cardobj;
+        DOMServerList.appendChild(cardobj);
+        if ("date" in cardD) {
+            setServerCardLastPlayed(cardobj, cardD["date"]);
+        }
+        if ("pcnt" in cardD) {
+            setServerCardPlayerCounts(cardobj, cardD["pcnt"][0], cardD["pcnt"][1]);
+        }
+    }
+}
+async function store_servers() {
+    await invoke("store_servers", {"servers":JSON.stringify(serverCardMap)});
+}
+fetch_servers();

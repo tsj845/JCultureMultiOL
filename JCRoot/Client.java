@@ -27,6 +27,10 @@ public class Client {
     private static LinkedBlockingQueue<String> inputs = new LinkedBlockingQueue<>();
     private static final Object EXIT_LOCK = new Object(), READY_LOCK = new Object(), WAIT_LOCK = new Object();
     private static CountDownLatch countdown = null;
+    private static int[] protver = new int[3];
+    private static boolean isPVer(int maj, int seg, int min) {
+        return (maj == -1 || protver[0] == maj) && (seg == -1 || protver[1] == seg) && (min == -1 || protver[2] == min);
+    }
     private static int read(InputStream in) throws Exception {
         int r = in.read();
         if (r < 0) crash();
@@ -44,9 +48,14 @@ public class Client {
             boolean hasPass = read(sIn) > 0;
             byte[] buf = new byte[read(sIn)];
             read(sIn, buf);
+            byte[] vbuf = new byte[6];
+            read(sIn, buf);
+            protver[0] = (((int)vbuf[0])<<8)|(vbuf[1]);
+            protver[1] = (((int)vbuf[2])<<8)|(vbuf[3]);
+            protver[2] = (((int)vbuf[4])<<8)|(vbuf[5]);
             sock.close();
             String hname = new String(buf);
-            System.out.printf("Confirm joining \"%s\" with%s password? (Y/n) ", hname, hasPass?"":"out");
+            System.out.printf("Confirm joining \"%s\" (%d.%d.%d) with%s password? (Y/n) ", hname, protver[0], protver[1], protver[2], hasPass?"":"out");
             if (sc.nextLine().toLowerCase().matches("(n|no)")) {
                 return false;
             }
@@ -215,7 +224,10 @@ public class Client {
                     sOut.write(1);
                 }
                 Teams.reset();
-                board = new Board(read(sIn), read(sIn), read(sIn));
+                board = new Board(read(sIn), read(sIn));
+                if (isPVer(0, 0, 1)) {
+                    read(sIn);
+                }
                 gameloop();
             }
             if (commcode == 2) {

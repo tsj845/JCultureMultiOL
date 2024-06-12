@@ -58,6 +58,7 @@ pub struct Sockets {
     barrier_flags: [u8;SOCKETS_BARFLAG_SIZE],
     // ensure that certain actions are done in the correct sequence
     sequence_flags: [u8;SOCKETS_BARFLAG_SIZE],
+    host_prot_ver: [u16; 3]
 }
 
 impl BitField for u8 {
@@ -155,6 +156,18 @@ impl Sockets {
         println!("CONNECTION COMMDATA EXPOSURE");
         return &mut self.commdata;
     }
+    pub fn matches_version(&self, maj: u16, seg: u16, min: u16) -> bool {
+        if maj != 65000 && maj != self.host_prot_ver[0] {
+            return false;
+        }
+        if seg != 65000 && seg != self.host_prot_ver[1] {
+            return false;
+        }
+        if min != 65000 && min != self.host_prot_ver[2] {
+            return false;
+        }
+        return true;
+    }
 }
 
 impl Sockets {
@@ -188,8 +201,8 @@ impl Sockets {
 }
 
 impl Sockets {
-    fn new(sid: u16, gamedata: TcpStream, commdata: TcpStream) -> Self {
-        Self{sid, playid:0, teamid:0, gamedata, commdata, barrier_flags:[0;SOCKETS_BARFLAG_SIZE], sequence_flags:[0;SOCKETS_SEQFLAG_SIZE]}
+    fn new(sid: u16, gamedata: TcpStream, commdata: TcpStream, pver: [u16;3]) -> Self {
+        Self{sid, playid:0, teamid:0, gamedata, commdata, barrier_flags:[0;SOCKETS_BARFLAG_SIZE], sequence_flags:[0;SOCKETS_SEQFLAG_SIZE], host_prot_ver:pver}
     }
     pub fn connect_data(conn_data: &ConnData) -> TResult<ServerData> {
     // pub fn connect_data(conn_data: &str) -> Result<ServerData, ()> {
@@ -199,11 +212,11 @@ impl Sockets {
             Err(_) => {return Err(ConnError::boxed());}
         };
         gd.write(&[0x66])?;
-        let r = Ok(ServerData{has_password:Self::sread_byte(&mut gd)? != 0,name:String::from_utf8(Self::sread_n_bytes(Self::sread_byte(&mut gd)? as usize, &mut gd)?.to_vec()).unwrap()});
+        let r = Ok(ServerData{has_password:Self::sread_byte(&mut gd)? != 0,name:String::from_utf8(Self::sread_n_bytes(Self::sread_byte(&mut gd)? as usize, &mut gd)?.to_vec()).unwrap(),version:[Self::sread_u16(&mut gd)?;3]});
         let _ = gd.shutdown(Both);
         return r;
     }
-    pub fn connect_player(conn_data: &ConnData) -> TResult<Self> {
+    pub fn connect_player(conn_data: &ConnData, prot_ver: [u16;3]) -> TResult<Self> {
         let mut gd = match TcpStream::connect(conn_data.to_str()) {
             Ok(s)=>s,
             Err(_) => {return Err(ConnError::boxed());}
@@ -233,7 +246,7 @@ impl Sockets {
             Ok(false) => {shutdown!(gd, cd);return Err(ConnError::boxed());},
             Err(e) => {shutdown!(gd, cd);println!("{e}");return Err(e);}
         };
-        let mut ret = Self::new(sid,gd,cd);
+        let mut ret = Self::new(sid,gd,cd,prot_ver);
         ret.set_sequence(SOCKETS_SEQUENCE_IDS::S1HANDSHAKE, S1SEQ::POSTS2SHAKE as u8);
         ret.set_barrier(SOCKETS_BARRIER_IDS::S2HANDSHAKE);
         return Ok(ret);

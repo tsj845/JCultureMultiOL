@@ -22,7 +22,7 @@ pub fn byte_buf(size: usize) -> Box<[u8]> {
 #[derive(Debug)]
 pub struct GameError {}
 
-impl std::fmt::Display for GameError {
+impl Display for GameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("{:?}", self))
     }
@@ -40,7 +40,7 @@ impl GameError {
 
 macro_rules! DISP {
     ($sn:ident) => {
-        impl std::fmt::Display for $sn {
+        impl Display for $sn {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.write_str(&format!("{:?}", self))
             }
@@ -59,7 +59,7 @@ impl InvarError {
 
 #[derive(Debug)]
 pub struct ConnError {}
-impl std::fmt::Display for ConnError {
+impl Display for ConnError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("{:?}", self))
     }
@@ -73,7 +73,7 @@ impl ConnError {
 #[derive(Debug)]
 /// for when the user cancels something, not an actual error, just a way to represent a user cancelling an interaction
 pub struct CancellationError {}
-impl std::fmt::Display for CancellationError {
+impl Display for CancellationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("{:?}", self))
     }
@@ -86,7 +86,7 @@ impl CancellationError {
 
 #[derive(Debug)]
 pub struct GenErr<T: Debug> {pub src: T}
-impl<T: Debug> std::fmt::Display for GenErr<T> {
+impl<T: Debug> Display for GenErr<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("{:?}", self))
     }
@@ -100,16 +100,23 @@ impl<T: Debug> GenErr<T> {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ServerData {
     pub has_password: bool,
+    pub name: String,
+    pub version: [u16; 3]
+}
+
+#[derive(Clone, Deserialize)]
+pub struct JoinData {
+    pub cdat: ConnData,
     pub name: String
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ConnData<'a> {
-    addr: &'a str,
+pub struct ConnData {
+    addr: String,
     port: u16
 }
-impl<'a> ConnData<'a> {
-    pub fn new(addr: &'a str, port: u16) -> ConnData<'a> {
+impl ConnData {
+    pub fn new(addr: String, port: u16) -> ConnData {
         Self {addr,port}
     }
     pub fn to_str(&self) -> String {
@@ -124,57 +131,36 @@ pub struct MoveUpdatePayload {
     team: u8
 }
 
-pub struct Threads {
-    // threads: [std::thread::Thread;2],
-    // inited: [bool;2],
-    // locks: [Atomic]
-}
+// #[derive(Clone, Serialize, Deserialize, Debug)]
+// pub struct ItcError {
+//     pub msg: String
+// }
 
-pub struct GlobData {
-    // pub threads: std::thread::Thread
-    pub threads: Threads,
-    pub value: u32
-}
+// #[derive(Debug)]
+// pub enum ItcComm {
+//     Error(ItcError),
+//     Data(String),
+//     Invalid
+// }
 
-#[allow(non_upper_case_globals)]
-static mut GLOBDATA_actual: GlobData = GlobData{value:0,threads:Threads{}};
-
-pub fn get_globdata() -> &'static mut GlobData {
-    unsafe {
-        return &mut GLOBDATA_actual;
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct ItcError {
-    pub msg: String
-}
-
-#[derive(Debug)]
-pub enum ItcComm {
-    Error(ItcError),
-    Data(String),
-    Invalid
-}
-
-impl ItcComm {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::Error(e) => format!("ERROR{}", serde_json::to_string(e).unwrap()),
-            Self::Data(d) => format!("DATA{}", d),
-            Self::Invalid => "INVALID".to_owned()
-        }
-    }
-    pub fn from_string(string: String) -> Self {
-        if string.starts_with("ERROR") {
-            return Self::Error(serde_json::from_str(&string[5..]).unwrap());
-        }
-        if string.starts_with("DATA") {
-            return Self::Data((&string[4..]).to_owned());
-        }
-        if string.starts_with("OK") {
-            return Self::Data(String::new());
-        }
-        return Self::Invalid;
-    }
-}
+// impl ItcComm {
+//     pub fn to_string(&self) -> String {
+//         match self {
+//             Self::Error(e) => format!("ERROR{}", serde_json::to_string(e).unwrap()),
+//             Self::Data(d) => format!("DATA{}", d),
+//             Self::Invalid => "INVALID".to_owned()
+//         }
+//     }
+//     pub fn from_string(string: String) -> Self {
+//         if string.starts_with("ERROR") {
+//             return Self::Error(serde_json::from_str(&string[5..]).unwrap());
+//         }
+//         if string.starts_with("DATA") {
+//             return Self::Data((&string[4..]).to_owned());
+//         }
+//         if string.starts_with("OK") {
+//             return Self::Data(String::new());
+//         }
+//         return Self::Invalid;
+//     }
+// }

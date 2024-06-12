@@ -1,1 +1,1 @@
-cargo tauri dev --no-watch -- -- "$@"
+cargo tauri dev --no-watch -e -- -- "$@"

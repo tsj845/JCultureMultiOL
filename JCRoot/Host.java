@@ -160,7 +160,7 @@ public class Host {
         }
     }
     private static Board getTestBoard() {
-        Board testBoard = new Board(4, 1, 0);
+        Board testBoard = new Board(4, 1);
         testBoard.board[0][1].value = 2;
         testBoard.board[0][2].value = 3;
         testBoard.board[0][3].value = 4;
@@ -465,7 +465,7 @@ public class Host {
                 for (Player p : players.values()) {
                     Teams.teams[p.team.id].pcount ++;
                 }
-                game = new Game(itcw, itch, itcp);
+                game = new Game(itcw, itch);
                 countdown = new CountDownLatch(itcp);
                 for (Player p : players.values()) {
                     p.pipe.sink().write(ByteBuffer.wrap(new byte[]{1}));
@@ -522,6 +522,12 @@ public class Host {
             sOut.write(usingPass ? 1 : 0);
             sOut.write(hostname.length());
             sOut.write(hostname.getBytes());
+            sOut.write(0);
+            sOut.write(0);
+            sOut.write(0);
+            sOut.write(1);
+            sOut.write(0);
+            sOut.write(1);
             sock.close();
             return;
         }
@@ -652,7 +658,6 @@ public class Host {
                     read(sIn);
                     sOut.write(itcw);
                     sOut.write(itch);
-                    sOut.write(itcp);
                     countdown.countDown();
                     countdown.await();
                     gameloop(player);

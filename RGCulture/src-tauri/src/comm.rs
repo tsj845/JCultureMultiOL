@@ -1,6 +1,6 @@
-use crate::{common::*, rt::{Sockets, ErrCause}};
+use crate::{common::*, rt::Sockets};
 use tauri::{AppHandle, Manager};
-use std::{any::{Any, TypeId}, env::args, thread};
+use std::thread;
 use std::sync::mpsc::{Receiver, Sender, channel};
 // use serde_json::Value as JSValue;
 use std::sync::{Arc, Mutex, Condvar};
@@ -78,6 +78,7 @@ struct MoveInfo {
     team: u8
 }
 
+#[derive(PartialEq)]
 enum GameState {
     Pregame,
     Midgame
@@ -97,14 +98,17 @@ fn is_true(test:&str) -> bool{
     return test == "true" || test == "\"true\"";
 }
 
-fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<()> {
+fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<[u16;3]> {
     let window = app.get_window("main").unwrap();
     let sdat = Sockets::connect_data(cdat)?;
+    let ver = sdat.version.clone();
+    println!("{:?}", &sdat);
     let (cv1, cv2);
     cvarpair!(cv1, cv2, false);
     let (val1, val2);
     mutexpair!(val1, val2, false);
     window.once("server-confirmed", move |event| {
+        println!("CONFIRMED");
         *(val2.lock().unwrap()) = is_true(event.payload().unwrap());
         *(cv2.0.lock().unwrap()) = true;
         cv2.1.notify_one();
@@ -112,12 +116,13 @@ fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<()> {
     window.emit("confirm-server", sdat)?;
     let mut confirmed = cv1.0.lock().unwrap();
     while !*confirmed {
+        println!("UNCONFIRMED");
         confirmed = cv1.1.wait(confirmed).unwrap();
     }
     if !*val1.lock().unwrap() {
         return Err(CancellationError::boxed());
     }
-    Ok(())
+    Ok(ver)
 }
 
 /// if an `Ok(())` is returned, it is guaranteed that there either was no password, or there was and the user
@@ -171,24 +176,144 @@ fn password_logic(app: &AppHandle, conn: &mut Sockets) -> TResult<()> {
 }
 
 fn connect_server(app: &AppHandle, cdat: &ConnData, nickname: String) -> TResult<Sockets> {
-    let window = app.get_window("main").unwrap();
     // confirm user wants to connect to this server
-    confirm_server(app, cdat)?;
+    let ver = confirm_server(app, cdat)?;
     // make that connection
-    let mut conn = Sockets::connect_player(cdat)?;
+    let mut conn = Sockets::connect_player(cdat, ver)?;
     // check if there's a password, if so then do that logic too
     password_logic(app, &mut conn)?;
     conn.send_name(&nickname)?;
+    conn.get_team()?;
     return Ok(conn);
 }
 
-fn get_conn_data(app: &AppHandle) -> TResult<ConnData> {
-    todo!()
+fn runloop(app: &AppHandle, mut conn: Sockets) -> TResult<()> {
+    let window = app.get_window("main").unwrap();
+    let win2 = app.get_window("main").unwrap();
+    window.emit("join-server-ok", "")?;
+    let mut gamestate = GameState::Pregame;
+    loop {
+        let commcode: u8 = conn.read_byte()?;
+        if gamestate == GameState::Pregame {
+            match commcode {
+                0 => {conn.shutdown();window.trigger("close", None);break;},
+                1 => {
+                    let w = conn.read_size()?;
+                    let h = conn.read_size()?;
+                    if conn.matches_version(0, 0, 1) {
+                        let _ = conn.read_size()?;
+                    }
+                    window.emit("create-board", BoardDims{w,h})?;
+                    gamestate = GameState::Midgame;
+                },
+                2 => {
+                    let nl = conn.read_byte().unwrap();
+                    let name = String::from_utf8(Vec::<u8>::from(conn.read_n_bytes(nl as usize).unwrap())).unwrap();
+                    let pid = conn.read_player_id().unwrap();
+                    let tid = conn.read_byte().unwrap();
+                    win2.emit("player-join", PlayerInfo{name,pid,tid}).unwrap();
+                },
+                3 => {
+                    let pid = conn.read_player_id().unwrap();
+                    let tid = conn.read_byte().unwrap();
+                    win2.emit("team-change", (pid, tid)).unwrap();
+                },
+                4 => {
+                    win2.emit("player-leave", conn.read_byte().unwrap()).unwrap();
+                },
+                // not used for this client
+                5 => {let _ = conn.read_byte().unwrap();},
+                // not used for this client
+                6 => {
+                    for _ in 0..conn.read_byte().unwrap() {
+                        for _ in 0..4 {
+                            let _ = conn.read_u16().unwrap();
+                        }
+                    }
+                },
+                7 => {
+                    let w = conn.read_size().unwrap();
+                    let h = conn.read_size().unwrap();
+                    if conn.matches_version(0, 0, 1) {
+                        let _ = conn.read_size()?;
+                    }
+                    let mut scores = [0u32; 6];
+                    for i in 0..6 {
+                        scores[i] = conn.read_score().unwrap();
+                    }
+                    let mut tiles = byte_buf((w as usize)*(h as usize)*2);
+                    for i in 0..(tiles.len()/2) {
+                        let sp = conn.read_bsp().unwrap();
+                        tiles[i*2] = sp.0;
+                        tiles[i*2+1] = sp.1;
+                    }
+                    win2.emit("full-board", BoardInfo{w,h,tiles,scores}).unwrap();
+                    gamestate = GameState::Midgame;
+                },
+                _ => {break;}
+            }
+        } else if gamestate == GameState::Midgame {
+            if commcode == 1 {
+                // keep taking input until accepted
+                'outer: loop {
+                    let inputready = condvar!(false);
+                    let ir2 = inputready.clone();
+                    let pmove = mutex!((0u32,0u32));
+                    let pm2 = pmove.clone();
+                    let (lock, cvar) = &*inputready;
+                    let pmlock = &*pmove;
+                    let mut hasinput = lock.lock().unwrap();
+                    win2.once("board-input", move |event| {
+                        let (lock, cvar) = &*ir2;
+                        let lock2 = &*pm2;
+                        let pmp: UIPlayerMovePayload = serde_json::from_str(event.payload().unwrap()).unwrap();
+                        let mut pmv = lock2.lock().unwrap();
+                        *pmv = (pmp.x, pmp.y);
+                        *lock.lock().unwrap() = true;
+                        cvar.notify_one();
+                    });
+                    win2.emit("get-input", "")?;
+                    while !*hasinput {
+                        hasinput = cvar.wait(hasinput).unwrap();
+                    }
+                    let pm = (*pmlock.lock().unwrap()).clone();
+                    if conn.try_move(pm.0, pm.1)? {
+                        break 'outer;
+                    }
+                }
+                let movecomplete = condvar!(false);
+                let mc2 = movecomplete.clone();
+                let gameover = mutex!(false);
+                let go2 = gameover.clone();
+                let (lock, cvar) = &*movecomplete;
+                let mut complete = lock.lock().unwrap();
+                win2.once("move-complete", move |event| {
+                    let (lock, cvar) = &*mc2;
+                    *lock.lock().unwrap() = true;
+                    let mut go = go2.lock().unwrap();
+                    *go = is_true(event.payload().unwrap());
+                    cvar.notify_one();
+                });
+                let (movex, movey) = conn.read_move().unwrap();
+                let team = conn.read_team().unwrap();
+                win2.emit("player-move", MoveInfo{x:movex,y:movey,team})?;
+                while !*complete {
+                    complete = cvar.wait(complete).unwrap();
+                }
+                if *gameover.lock().unwrap() {
+                    gamestate = GameState::Pregame;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn entry(app: &mut tauri::App) -> TResult<()> {
-    let window = app.get_window("main").unwrap();
+    let handle = app.handle();
+    let hand2 = app.handle();
     thread::spawn(move || {
+        let window = handle.get_window("main").unwrap();
         let (atx1, arx1): (Sender<String>, Receiver<String>) = channel();
         {
             // blocks until the window is ready
@@ -199,6 +324,19 @@ pub fn entry(app: &mut tauri::App) -> TResult<()> {
         }
         arx1.recv().unwrap();
         println!("STARTED");
+        let win2 = handle.get_window("main").unwrap();
+        window.listen("join-server", move |event|{
+            // let sdat: usize = event.payload().unwrap().parse().unwrap();
+            let jdat: JoinData = serde_json::from_str(event.payload().unwrap()).unwrap();
+            match connect_server(&hand2, &jdat.cdat, jdat.name.clone()) {
+                Ok(s) => {
+                    let _ = runloop(&hand2, s);
+                },
+                Err(e) => {
+                    win2.emit("join-server-failed", format!("{}", e)).unwrap();
+                }
+            };
+        });
     });
     Ok(())
 }
