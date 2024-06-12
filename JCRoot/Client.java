@@ -50,9 +50,9 @@ public class Client {
             read(sIn, buf);
             byte[] vbuf = new byte[6];
             read(sIn, buf);
-            protver[0] = (((int)vbuf[0])<<8)|(vbuf[1]);
-            protver[1] = (((int)vbuf[2])<<8)|(vbuf[3]);
-            protver[2] = (((int)vbuf[4])<<8)|(vbuf[5]);
+            protver[0] = ((((int)vbuf[0])&0xff)<<8)|(vbuf[1]&0xff);
+            protver[1] = ((((int)vbuf[2])&0xff)<<8)|(vbuf[3]&0xff);
+            protver[2] = ((((int)vbuf[4])&0xff)<<8)|(vbuf[5]&0xff);
             sock.close();
             String hname = new String(buf);
             System.out.printf("Confirm joining \"%s\" (%d.%d.%d) with%s password? (Y/n) ", hname, protver[0], protver[1], protver[2], hasPass?"":"out");
