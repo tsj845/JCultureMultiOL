@@ -15,7 +15,7 @@ DOMServerControls.children[0].addEventListener("click", () => {
         const scd = serverCardMap[cid][0];
         /**@type {string} */
         let ad = scd["addr"];
-        once("confirm-server", (_)=>{console.log("CONFIRMING");emit("server-confirmed", "false");});
+        once("confirm-server", (_)=>{console.log("CONFIRMING");emit("server-confirmed", "true");});
         emit("join-server", {"cdat":{"addr":ad.slice(0, ad.indexOf(":")),"port":Number(ad.slice(ad.indexOf(":")+1))},"name":"TR1"});
     }
 });

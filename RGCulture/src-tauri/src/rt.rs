@@ -3,15 +3,10 @@ use std::net::TcpStream;
 use std::net::Shutdown::Both;
 use std::ops::{BitAnd, BitAndAssign, BitOrAssign};
 use crate::common::*;
+use crate::protocol::Protocol;
 use std::io;
 use std::io::{Read, Write};
-use std::slice::{from_mut as slice_of_mut, from_ref as slice_of};
 
-macro_rules! bytes {
-    ($content:tt) => {
-        &mut vec!$content[..]
-    };
-}
 macro_rules! rt_closure {
     ($stream:ident, $rty:ty, $tree:tt) => {
         |$stream:&mut TcpStream|->TResult<$rty>{$tree}
@@ -43,12 +38,10 @@ macro_rules! shutdown {
 
 // type SRes<T> = Result<T, Box<GenErr<ErrCause>>>;
 type SRes<T> = TResult<T>;
-pub type TeamId = u8;
-pub type PlayerId = u16;
 
 const SOCKETS_BARFLAG_SIZE: usize = 2;
 const SOCKETS_SEQFLAG_SIZE: usize = 2;
-pub struct Sockets {
+pub struct Connection {
     sid: u16, // SID, Socket ID, used in S2 Handshake
     playid: PlayerId,
     teamid: TeamId,
@@ -58,7 +51,7 @@ pub struct Sockets {
     barrier_flags: [u8;SOCKETS_BARFLAG_SIZE],
     // ensure that certain actions are done in the correct sequence
     sequence_flags: [u8;SOCKETS_BARFLAG_SIZE],
-    host_prot_ver: [u16; 3]
+    host_prot_ver: ProtVer
 }
 
 impl BitField for u8 {
@@ -135,7 +128,7 @@ pub enum ErrCause {
     SEQUENCE
 }
 
-impl Sockets {
+impl Connection {
     fn get_barrier(&self, barrier_id: SOCKETS_BARRIER_IDS) -> bool {
         self.barrier_flags.get_bit(barrier_id as usize)
     }
@@ -152,56 +145,13 @@ impl Sockets {
         println!("CONNECTION SHUTDOWN");
         shutdown!(self.commdata);
     }
-    pub fn expose_comm(&mut self) -> &mut TcpStream {
-        println!("CONNECTION COMMDATA EXPOSURE");
-        return &mut self.commdata;
-    }
-    pub fn matches_version(&self, maj: u16, seg: u16, min: u16) -> bool {
-        if maj != 65000 && maj != self.host_prot_ver[0] {
-            return false;
-        }
-        if seg != 65000 && seg != self.host_prot_ver[1] {
-            return false;
-        }
-        if min != 65000 && min != self.host_prot_ver[2] {
-            return false;
-        }
-        return true;
+    pub fn matches_version(&self, test: ProtVer) -> bool {
+        return self.host_prot_ver == test;
     }
 }
 
-impl Sockets {
-    fn sread_byte(stream: &mut TcpStream) -> TResult<u8> {
-        let mut byte: u8 = 0;
-        stream.read_exact(slice_of_mut(&mut byte))?;
-        Ok(byte)
-    }
-    fn sread_n_bytes(n: usize, stream: &mut TcpStream) -> TResult<Box<[u8]>> {
-        let mut buf = byte_buf(n);
-        stream.read_exact(buf.as_mut())?;
-        Ok(buf)
-    }
-    fn sread_u16(stream: &mut TcpStream) -> TResult<u16> {
-        let buf = &mut [0;2];
-        stream.read_exact(buf)?;
-        Ok((buf[0] as u16) << 8 | buf[1] as u16)
-    }
-    fn swrite_byte(byte: u8, stream: &mut TcpStream) -> TResult<()> {
-        Ok(stream.write_all(slice_of(&byte))?)
-    }
-    fn swrite_u16(n: u16, stream: &mut TcpStream) -> TResult<()> {
-        Ok(stream.write_all(bytes![[(n>>8) as u8, (n&0xff) as u8]])?)
-    }
-    fn sread_team(stream: &mut TcpStream) -> TResult<TeamId> {
-        Self::sread_byte(stream)
-    }
-    fn sread_player_id(stream: &mut TcpStream) -> TResult<PlayerId> {
-        Ok(Self::sread_u16(stream)? as u16)
-    }
-}
-
-impl Sockets {
-    fn new(sid: u16, gamedata: TcpStream, commdata: TcpStream, pver: [u16;3]) -> Self {
+impl Connection {
+    fn new(sid: u16, gamedata: TcpStream, commdata: TcpStream, pver: ProtVer) -> Self {
         Self{sid, playid:0, teamid:0, gamedata, commdata, barrier_flags:[0;SOCKETS_BARFLAG_SIZE], sequence_flags:[0;SOCKETS_SEQFLAG_SIZE], host_prot_ver:pver}
     }
     pub fn connect_data(conn_data: &ConnData) -> TResult<ServerData> {
@@ -212,21 +162,21 @@ impl Sockets {
             Err(_) => {return Err(ConnError::boxed());}
         };
         gd.write(&[0x66])?;
-        let r = Ok(ServerData{has_password:Self::sread_byte(&mut gd)? != 0,name:String::from_utf8(Self::sread_n_bytes(Self::sread_byte(&mut gd)? as usize, &mut gd)?.to_vec()).unwrap(),version:[Self::sread_u16(&mut gd)?;3]});
+        let r = Ok(ServerData{has_password:Protocol::read_byte(&mut gd)? != 0,name:String::from_utf8(Protocol::read_n_bytes(Protocol::read_byte(&mut gd)? as usize, &mut gd)?.to_vec()).unwrap(),version:ProtVer(Protocol::read_u16(&mut gd)?,Protocol::read_u16(&mut gd)?,Protocol::read_u16(&mut gd)?)});
         let _ = gd.shutdown(Both);
         return r;
     }
-    pub fn connect_player(conn_data: &ConnData, prot_ver: [u16;3]) -> TResult<Self> {
+    pub fn connect_player(conn_data: &ConnData, prot_ver: ProtVer) -> TResult<Self> {
         let mut gd = match TcpStream::connect(conn_data.to_str()) {
             Ok(s)=>s,
             Err(_) => {return Err(ConnError::boxed());}
         };
         let r = |stream:&mut TcpStream|->TResult<u16> {
-            Self::swrite_byte(0x44, stream)?;
-            if Self::sread_byte(stream)? == 2 {
+            Protocol::write_byte(0x44, stream)?;
+            if Protocol::read_byte(stream)? == 2 {
                 return Err(Box::new(io::Error::new(io::ErrorKind::ConnectionRefused, "host rejected client")));
             }
-            return Self::sread_u16(stream);
+            return Protocol::read_u16(stream);
         }(&mut gd);
         let sid = match r {
             Ok(s)=>s,
@@ -237,9 +187,9 @@ impl Sockets {
             Err(_)=>{let _=gd.shutdown(Both);return Err(ConnError::boxed());}
         };
         let r = rt_closure!(stream, bool, {
-            Self::swrite_byte(0x22, stream)?;
-            Self::swrite_u16(sid, stream)?;
-            return Ok(Self::sread_byte(stream)? == 1);
+            Protocol::write_byte(0x22, stream)?;
+            Protocol::write_u16(sid, stream)?;
+            return Ok(Protocol::read_byte(stream)? == 1);
         })(&mut cd);
         match r {
             Ok(true) => {},
@@ -258,7 +208,7 @@ impl Sockets {
         if self.get_sequence(SOCKETS_SEQUENCE_IDS::S1HANDSHAKE) != S1SEQ::POSTS2SHAKE as u8 {
             return Err(GenErr::boxed(ErrCause::SEQUENCE));
         }
-        let v = match Self::sread_byte(&mut self.gamedata) {
+        let v = match Protocol::read_byte(&mut self.gamedata) {
             Ok(v) => v == 1,
             Err(_) => {self.shutdown();return Err(GenErr::boxed(ErrCause::IO));}
         };
@@ -277,9 +227,9 @@ impl Sockets {
             return Err(GenErr::boxed(ErrCause::SEQUENCE));
         }
         let r = rt_closure!(stream, bool, {
-            Self::swrite_byte(pw.len() as u8, stream)?;
+            Protocol::write_byte(pw.len() as u8, stream)?;
             stream.write_all(pw.as_bytes())?;
-            return Ok(Self::sread_byte(stream)? == 1);
+            return Ok(Protocol::read_byte(stream)? == 1);
         })(&mut self.gamedata);
         match r {
             Ok(true) => {self.set_sequence(SOCKETS_SEQUENCE_IDS::S1HANDSHAKE, S1SEQ::POSTPWACCEPT as u8);Ok(true)},
@@ -295,12 +245,12 @@ impl Sockets {
             return Err(GenErr::boxed(ErrCause::SEQUENCE));
         }
         if retry {
-            match Self::swrite_byte(1, &mut self.gamedata) {
+            match Protocol::write_byte(1, &mut self.gamedata) {
                 Ok(()) => {self.set_sequence(SOCKETS_SEQUENCE_IDS::S1HANDSHAKE, S1SEQ::POSTPWCHECK as u8);Ok(())},
                 Err(_) => {self.shutdown();Err(GenErr::boxed(ErrCause::IO))}
             }
         } else {
-            let _ = Self::swrite_byte(0, &mut self.gamedata);
+            let _ = Protocol::write_byte(0, &mut self.gamedata);
             self.shutdown();
             return Ok(());
         }
@@ -313,7 +263,7 @@ impl Sockets {
             return Err(InvarError::boxed());
         }
         match rt_closure!(stream, (), {
-            Self::swrite_byte(name.len() as u8, stream)?;
+            Protocol::write_byte(name.len() as u8, stream)?;
             stream.write_all(name.as_bytes())?;
             Ok(())
         })(&mut self.gamedata) {
@@ -326,8 +276,8 @@ impl Sockets {
             return Err(GenErr::boxed(ErrCause::SEQUENCE));
         }
         match rt_closure!(stream, (PlayerId, TeamId), {
-            let pn = Self::sread_player_id(stream)?;
-            let tn = Self::sread_team(stream)?;
+            let pn = Protocol::read_player_id(self.host_prot_ver, stream)?;
+            let tn = Protocol::read_team(stream)?;
             Ok((pn, tn))
         })(&mut self.gamedata) {
             Ok(v) => {
@@ -341,25 +291,25 @@ impl Sockets {
         }
     }
     pub fn read_byte(&mut self) -> TResult<u8> {
-        Self::sread_byte(&mut self.gamedata)
+        Protocol::read_byte(&mut self.gamedata)
     }
     pub fn write_byte(&mut self, byte: u8) -> TResult<()> {
-        Self::swrite_byte(byte, &mut self.gamedata)
+        Protocol::write_byte(byte, &mut self.gamedata)
     }
     pub fn read_n_bytes(&mut self, k: usize) -> TResult<Box<[u8]>> {
-        Self::sread_n_bytes(k, &mut self.gamedata)
+        Protocol::read_n_bytes(k, &mut self.gamedata)
     }
-    pub fn read_player_id(&mut self) -> TResult<u16> {
-        Ok(self.read_byte()? as u16)
+    pub fn read_player_id(&mut self) -> TResult<PlayerId> {
+        Protocol::read_player_id(self.host_prot_ver, &mut self.gamedata)
     }
     pub fn read_u16(&mut self) -> TResult<u16> {
-        Self::sread_u16(&mut self.gamedata)
+        Protocol::read_u16(&mut self.gamedata)
     }
     pub fn read_size(&mut self) -> TResult<u32> {
         Ok(self.read_byte()? as u32)
     }
     pub fn read_score(&mut self) -> TResult<u32> {
-        let b = Self::sread_n_bytes(4, &mut self.gamedata)?;
+        let b = Protocol::read_n_bytes(4, &mut self.gamedata)?;
         Ok(((b[0] as u32)<<24) | ((b[1] as u32)<<16) | ((b[2] as u32)<<8) | (b[3] as u32))
     }
     pub fn read_bsp(&mut self) -> TResult<(u8, u8)> {
@@ -373,7 +323,7 @@ impl Sockets {
     pub fn read_move(&mut self) -> TResult<(u32, u32)> {
         Ok((self.read_byte()? as u32, self.read_byte()? as u32))
     }
-    pub fn read_team(&mut self) -> TResult<u8> {
+    pub fn read_team(&mut self) -> TResult<TeamId> {
         self.read_byte()
     }
     pub fn teamid(&self) -> TResult<TeamId> {
@@ -390,7 +340,7 @@ impl Sockets {
     }
 }
 
-impl Drop for Sockets {
+impl Drop for Connection {
     fn drop(&mut self) {
         println!("DROPPED THE CONNECTION");
     }

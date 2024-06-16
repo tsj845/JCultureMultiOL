@@ -1,0 +1,297 @@
+this document defines the protocol for interfacing with session hosts as a client and the inverse
+
+this document uses terms defined in DEFS.txt
+
+@stub()
+CLIENT REJOIN {}
+
+GET SERVER DATA {
+    C>H: [0x66] // start communication
+    H>C: bool PASS // if the host requires a password
+    H>C: u1 HLEN // host name length
+    H>C: <HLEN> // host name buffer
+    H>C: [u2, u2, u2] // {MAJ}.{SEG}.{MIN} <- version number
+    TERMINATE SOCKET
+}
+
+S2HANDSHAKE {
+    C2>H: [0x22] // signal S2 handshake
+    C2>H: u2 SID // obtained from the other socket
+    IF [SID VALID] {
+        H>C2: 0x01
+    } ELSE {
+        H>C2: 0x00
+    }
+}
+
+HOST HANDSHAKE {
+    C>H: [0x44] // start communication
+    IF [REFUSED] {
+        H>C: 0x02
+        TERMINATE SOCKET
+    } ELSE {
+        H>C: 0x00
+    }
+    H>C: u2 SID // id per connection, should be cyclic as SIDs may be reused after enough time
+    DO S2HANDSHAKE
+    WAIT UNTIL S2HANDSHAKE ENDS
+    IF [HOST has PASSWORD] {
+        H>C: 0x01
+        C>H: u1 PLEN // length of password
+        C>H: <PLEN> // password buffer
+        IF [PASSWORD is VALID] {
+            H>C: 0x01
+        } else {
+            H>C: 0x00
+            IF [CLIENT TRY AGAIN] {
+                C>H: 0x01
+                RETRY
+            } else {
+                C>H: 0x00
+                TERMINATE SOCKET
+            }
+        }
+    } else {
+        H>C: 0x00
+    }
+    @persists("PLAYER ID")
+    C>H: u1 NLEN // length of name
+    @persists("PLAYER ID")
+    C>H: <NLEN> // name buffer
+    @persists(game)
+    H>C: {PlayerId} PLAYER ID // player id (given in the order in which players joined, defines turn order)
+                             // should be unique per persistance period
+    @persists("PLAYER ID")
+    H>C: {TeamId} TEAM // team id for this client
+    goto PREGAME LOOP
+}
+
+@version(<=0.1.1)
+PREGAME LOOP (ON SOCKET 2) {
+    C2>H: byte DCODE
+    SWITCH [DCODE] {
+        ON [0x00] {
+            // Client is leaving the session
+            H>C2: 0x00 // only after this is recieved may the socket be closed
+            HOST SIGNALS OTHERS OF LEAVING PLAYER
+            TERMINATE SOCKET
+        }
+    }
+}
+
+@version(<=0.1.1)
+PREGAME LOOP (ON SOCKET 1) {
+    H>C: byte DCODE // code for what kind of data is being sent
+    SWITCH [DCODE] {
+        ON [0x00] {
+            // Host is ending the session
+            TERMINATE SOCKET
+        }
+        ON [0x01] {
+            // Host is starting the game
+            C>H: 0x01 READY CODE
+            NOTE: W and H may not both be one
+            H>C: {Dimension} W {RESTRICT 1 <= W <= 26} // board width
+            H>C: {Dimension} H {RESTRICT 1 <= H <= 26} // board height
+            @version(0.0.1)
+            H>C: u1 P {RESTRICT 2 <= P <= 6} // player count
+            goto GAME LOOP
+        }
+        ON [0x02] {
+            // data on another client in the session
+            H>C: u1 CLEN // length of other client's name
+            H>C: <CLEN> // other name buffer
+            H>C: {PlayerId} OPLAYER // other player's id
+            H>C: {TeamId} OTEAM // other player's team
+        }
+        ON [0x03] {
+            // change team
+            H>C: {PlayerId} PID // id of player changing teams
+            H>C: {TeamId} TID // new team id [must be an existing team]
+        }
+        ON [0x04] {
+            // other player left
+            H>C: {PlayerId} PID // id of player that left
+        }
+        ON [0x05] {
+            // tileset change
+            @platform(tui)
+            H>C: u1 SETID
+        }
+        ON [0x06] {
+            @platform(tui)
+            do TILESET UPDATE
+        }
+    }
+    goto PREGAME LOOP
+}
+
+BOARD_TRANSFER {
+    H>C: [{Dimension}, {Dimension}] // width and height
+    NOTE: "JOIN ORDER" is defined as the order in which default team assignments are given
+            the order is as follows: RED, BLUE, GREEN, YELLOW, MAGENTA, CYAN
+    FOR EACH TEAM IN JOIN ORDER {
+        H>C: s32 SCORE
+    }
+    FOR ALL TILES {
+        H>C: [u1, {TeamId}] // value and team
+    }
+}
+
+@platform(tui)
+TILESET UPDATE {
+    NOTE: TILESET UPDATE will cause clients to behave as though they also recieved a command to change to SETID 0
+    H>C: u1 NUMT // number of tilesets
+    FOR EACH TILESET {
+        H>C: [u2, u2, u2, u2] // four java characters
+    }
+}
+
+GAME LOOP {
+    H>P: 0x01 // signal it's that player's turn
+    OR
+    H>!P: 0x00 // signal to others that it's not their turn
+    P>H: [{Dimension}, {Dimension}] POSITION
+    IF [VALID POSITION] {
+        H>P: 0x01
+    } else {
+        H>P: 0x00
+        RETRY
+    }
+    FOR ALL CLIENTS {
+        H>C: [{Dimension}, {Dimension}] POSITION
+        H>C: {TeamId} TEAM // team of player that just went
+    }
+    IF [PLAYER WON] {
+        @version(>0.1.1)
+        {
+            H>C: 0x01
+            H>C: {TeamId} winner
+        }
+        goto PREGAME LOOP
+    } ELSE {
+        @version(>0.1.1)
+        H>C: 0x00
+    }
+}
+
+@version(>0.1.1)
+CHANNEL 1 LOOP (on socket 1) {
+    IF (GAME IS RUNNING) {
+        do GAME LOOP
+    } ELSE {
+        H>C: u1 DCODE
+        IF (DCODE == 1) {
+            // HOST IS STARTING GAME
+            C>H: 0x01 READY CODE
+            NOTE: W and H may not both be one
+            H>C: {Dimension} W {RESTRICT 1 <= W <= 26} // board width
+            H>C: {Dimension} H {RESTRICT 1 <= H <= 26} // board height
+            IF (using default board) {
+                H>C: 0x00
+            } ELSE {
+                H>C: 0x01
+                for all tiles {
+                    H>C: u1 // tile value
+                    H>C: {TeamId} // owner of tile
+                }
+            }
+        }
+    }
+}
+
+@version(>0.1.1)
+CHANNEL 2 UPSTREAM LOOP (on socket 2, Client initiator) {
+    C>H: u1 DCODE
+    SWITCH (DCODE) {
+        ON 0x00 {
+            // Client is leaving the session
+            IF (host willing to issue PID key) {
+                H>C: 0x01
+                IF (client willing to accept PID key) {
+                    C>H: 0x01
+                    @persists("PLAYER ID")
+                    @feature("encryption", @encrypt(stream))
+                    H>C: {PIdKey} key
+                } ELSE {
+                    C>H 0x00
+                }
+            } ELSE {
+                H>C: 0x00
+            }
+            TERMINATE SOCKET
+        }
+        @context(lobby)
+        ON 0x01 {
+            // Client is toggling spectator mode
+            Host notifies other clients via C2Downstream Case 0x03, with the special team id "8"
+        }
+    }
+}
+
+@version(>0.1.1)
+CHANNEL 2 DOWNSTREAM LOOP (on socket 2, Host initiator) {
+    H>C: u1 DCODE
+    SWITCH (DCODE) {
+        @context(lobby)
+        ON 0x00 {
+            Host is ending session
+            TERMINATE SOCKET
+        }
+        @context(game)
+        ON 0x00 {
+            Host is ending the game early
+            the client should act as though the game ended normally
+            excepting that there was no winner
+        }
+        ON 0x01 {
+            Info on another player in session
+            IF (player already in session before current player joined) {
+                H>C: 0x00
+            } ELSE {
+                H>C: 0x01
+            }
+            H>C: {PlayerId} player
+            H>C: {TeamId} team
+            H>C: u1 NLEN
+            H>C: <NLEN> player name
+        }
+        ON 0x02 {
+            Player leaving
+            H>C: {PlayerId} player
+        }
+        ON 0x03 {
+            Team change
+            H>C: {PlayerId} player
+            H>C: {TeamId} new team
+        }
+    }
+}
+
+@version(>0.1.1)
+CLIENT REJOIN {
+    C>H: [0x33]
+    IF (host not accepting rejoining) {
+        H>C: 0x00
+        instead do HOST HANDSHAKE
+    }
+    H>C: 0x01
+    C>H: {PlayerId} PLAYER ID // the player id the client wants to use
+    IF (invalid id) {
+        // ids may be invalid if their persistance period has expired
+        // or if the id is currently in use by a client in the session
+        // or if the id was never issued a rejoin key
+        H>C: 0x00
+        instead do HOST HANDSHAKE
+    }
+    H>C: 0x01
+    // the key that the host issued when the player left
+    C>H: {PIdKey} key
+    IF (invalid key) {
+        H>C: 0x00
+        instead do HOST HANDSHAKE
+    }
+    H>C: 0x01
+    do S2HANDSHAKE
+    goto GAME LOOP
+}

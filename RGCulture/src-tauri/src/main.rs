@@ -1,9 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod payloads;
 mod common;
 mod comm;
 mod rt;
+mod protocol;
 use std::{env::args, fs};
 use std::path::Path;
 
@@ -43,7 +45,9 @@ fn main() {
     .invoke_handler(tauri::generate_handler![fetch_content, get_is_debug, fetch_servers, store_servers])
     .setup(|app| {
         let h = app.handle();
-        app.get_window("main").unwrap().listen("close", move |_|{h.exit(0)});
+        let win = app.get_window("main").unwrap();
+        win.listen("close", move |_|{h.exit(0)});
+        win.listen("echo", |_|{println!("ECHO");});
         if !args().any(|e|{e == "--no-server"}) {
             return entry(app);
         }

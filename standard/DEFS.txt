@@ -1,0 +1,106 @@
+this document defines certain terms and formatting styles
+
+TYPES {
+    u[X] - unsigned integer of [X] bytes
+    s[X] - signed integer of [X] bytes
+    byte - one byte signed integer
+    short - two byte signed integer
+    int - four byte signed integer
+    long - eight byte singed integer
+    ubyte - one byte unsigned integer
+    ushort - two byte unsigned integer
+    uint - four byte unsigned integer
+    ulong - eight byte unsigned integer
+    bool - one bit boolean
+    <Y> - buffer of Y bytes, where Y is either a specified constant or a named value
+}
+
+VERSION NUMBERS {
+    this section defines what version numbers are, and which ones are and aren't valid
+    all version numbers are transmitted as three unsigned 16-bit integers
+    they are displayed in text in the format {major}.{segment}.{minor}
+    the version number 0.0.0 is invalid
+    the version number 65000.*.* is invalid
+    the version number *.65000.* is invalid
+    the version number *.*.65000 is invalid
+}
+
+SIZES {
+    this section defines the sizes of certain types that represent specific kinds of values
+        the sizes of these types may depend on the protocol version
+    PlayerId {
+        @version(<=0.1.1)
+        u1
+        @version(>0.1.1)
+        u2
+    }
+    PIdKey {
+        - allows player to authenticate rejoining an ongoing game
+        - ALL PIdKeys MUST be random
+        <32>
+    }
+    TeamId {
+        - TeamIds represent spectators with 8 and the neutral team with 9
+        u1
+    }
+    Dimension {
+        - represents board sizes and coordinates
+        @version(<=0.1.1)
+        u1
+        @version(>0.1.1)
+        u4
+    }
+}
+
+PARTIES {
+    (defines the parties at each end of communication)
+    H -> HOST
+    C -> CLIENT
+    C2 -> CLIENT via socket 2
+    P -> CURRENT PLAYER [can be any of the clients or the host]
+}
+
+{
+    this section defines decorators
+    a decorator is a statement that modifies the proceeding statement
+    
+    @version([pattern]) where [pattern] is [ [ > | < | >= | <= ]? version ]
+        specifies that the next statement is only applicable to versions matching the specified pattern
+    
+    @persists([scope]?) where [scope] is [ global (default) | game | "[value]" ]
+        specifies that the next value transferred is persistant across program restarts
+        persistant values scoped as "game" are only required to be stored for the duration
+        of a game
+        "[value]" indicates that the next value must persist for the exact same duration as
+        the named other value
+    
+    @platform([platform]) where [platform] is [ tui | gui ]
+        specifies which platform a statement is applicable to
+        in the event that a statement is not supported by a platform, it must still
+        read the data that is sent in that statement, though it may freely discard it
+    
+    @context([context]) where [context] is [ game | lobby ]
+        specifies the context in which the next statement is to be followed
+        the statement is ignored if the context is incorrect
+        "game" specifies that a statement is only valid while there is an ongoing game
+        "lobby" specifies that a statement is only valid outside of an ongoing game
+    
+    @feature("[feature]")
+    @feature("[feature]" [,decorator]+)
+        specifies that the next statement is only valid when the specified feature is enabled
+        features can be either local or remote, if a feature is remote, a method to determine
+        its activation will be specified
+    
+    @encrypt([manner]) where [manner] is [ rsa | stream (see STREAM CIPHER) ]
+        specifies that the next value should be sent using the specified manner of encryption
+    
+    @stub()
+        specifies that the next item is meant only to raise awareness of its existence further
+        in the document
+}
+
+STREAM CIPHER {
+    this section defines the manner of encryption that allows encrypting single bytes such
+    that they can be streamed without using padding
+    - TODO
+}

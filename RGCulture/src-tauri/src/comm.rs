@@ -1,4 +1,4 @@
-use crate::{common::*, rt::Sockets};
+use crate::{common::*, rt::Connection};
 use tauri::{AppHandle, Manager};
 use std::thread;
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -38,46 +38,6 @@ macro_rules! mutexpair {
     };
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-struct UIPlayerMovePayload {
-    x: u32,
-    y: u32
-}
-
-#[derive(Clone, Deserialize)]
-struct PasswordPayload {
-    canceled: bool,
-    password: String
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct BoardInfo {
-    w: u32,
-    h: u32,
-    tiles: Box<[u8]>,
-    scores: [u32; 6]
-}
-
-#[derive(Clone, Serialize)]
-struct BoardDims {
-    w: u32,
-    h: u32
-}
-
-#[derive(Clone, Serialize)]
-struct PlayerInfo {
-    name: String,
-    pid: u16,
-    tid: u8
-}
-
-#[derive(Clone, Serialize)]
-struct MoveInfo {
-    x: u32,
-    y: u32,
-    team: u8
-}
-
 #[derive(PartialEq)]
 enum GameState {
     Pregame,
@@ -98,22 +58,32 @@ fn is_true(test:&str) -> bool{
     return test == "true" || test == "\"true\"";
 }
 
-fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<[u16;3]> {
+fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<ProtVer> {
     let window = app.get_window("main").unwrap();
-    let sdat = Sockets::connect_data(cdat)?;
+    let sdat = Connection::connect_data(cdat)?;
     let ver = sdat.version.clone();
     println!("{:?}", &sdat);
     let (cv1, cv2);
     cvarpair!(cv1, cv2, false);
     let (val1, val2);
     mutexpair!(val1, val2, false);
-    window.once("server-confirmed", move |event| {
-        println!("CONFIRMED");
-        *(val2.lock().unwrap()) = is_true(event.payload().unwrap());
-        *(cv2.0.lock().unwrap()) = true;
-        cv2.1.notify_one();
-    });
+    // let win2 = app.get_window("main").unwrap();
+    // thread::spawn(move||{
+        // win2.once("server-confirmed", move |event| {
+        window.once("server-confirmed", move |event| {
+            println!("CONFIRMED");
+            // let _ = tx1.send(event.payload().unwrap().to_string());
+            *(val2.lock().unwrap()) = is_true(event.payload().unwrap());
+            *(cv2.0.lock().unwrap()) = true;
+            cv2.1.notify_one();
+        });
+    // });
     window.emit("confirm-server", sdat)?;
+    // let conf = is_true(&rx.recv()?);
+    // println!("CONFIRMED: {}", conf);
+    // if !conf {
+    //     return Err(CancellationError::boxed());
+    // }
     let mut confirmed = cv1.0.lock().unwrap();
     while !*confirmed {
         println!("UNCONFIRMED");
@@ -127,7 +97,7 @@ fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<[u16;3]> {
 
 /// if an `Ok(())` is returned, it is guaranteed that there either was no password, or there was and the user
 /// entered it correctly
-fn password_logic(app: &AppHandle, conn: &mut Sockets) -> TResult<()> {
+fn password_logic(app: &AppHandle, conn: &mut Connection) -> TResult<()> {
     if !conn.check_password()? {
         return Ok(());
     }
@@ -175,11 +145,12 @@ fn password_logic(app: &AppHandle, conn: &mut Sockets) -> TResult<()> {
     Ok(())
 }
 
-fn connect_server(app: &AppHandle, cdat: &ConnData, nickname: String) -> TResult<Sockets> {
+fn connect_server(app: &AppHandle, cdat: &ConnData, nickname: String) -> TResult<Connection> {
     // confirm user wants to connect to this server
     let ver = confirm_server(app, cdat)?;
     // make that connection
-    let mut conn = Sockets::connect_player(cdat, ver)?;
+    let mut conn = Connection::connect_player(cdat, ver)?;
+    // let mut conn = Sockets::connect_player(cdat, [0, 1, 1])?;
     // check if there's a password, if so then do that logic too
     password_logic(app, &mut conn)?;
     conn.send_name(&nickname)?;
@@ -187,7 +158,8 @@ fn connect_server(app: &AppHandle, cdat: &ConnData, nickname: String) -> TResult
     return Ok(conn);
 }
 
-fn runloop(app: &AppHandle, mut conn: Sockets) -> TResult<()> {
+fn runloop(app: &AppHandle, mut conn: Connection) -> TResult<()> {
+    println!("RUNLOOP ENTRY");
     let window = app.get_window("main").unwrap();
     let win2 = app.get_window("main").unwrap();
     window.emit("join-server-ok", "")?;
@@ -200,57 +172,57 @@ fn runloop(app: &AppHandle, mut conn: Sockets) -> TResult<()> {
                 1 => {
                     let w = conn.read_size()?;
                     let h = conn.read_size()?;
-                    if conn.matches_version(0, 0, 1) {
+                    if conn.matches_version(ProtVer(0, 0, 1)) {
                         let _ = conn.read_size()?;
                     }
                     window.emit("create-board", BoardDims{w,h})?;
                     gamestate = GameState::Midgame;
                 },
                 2 => {
-                    let nl = conn.read_byte().unwrap();
-                    let name = String::from_utf8(Vec::<u8>::from(conn.read_n_bytes(nl as usize).unwrap())).unwrap();
-                    let pid = conn.read_player_id().unwrap();
-                    let tid = conn.read_byte().unwrap();
-                    win2.emit("player-join", PlayerInfo{name,pid,tid}).unwrap();
+                    let nl = conn.read_byte()?;
+                    let name = String::from_utf8(Vec::<u8>::from(conn.read_n_bytes(nl as usize)?)).unwrap();
+                    let pid = conn.read_player_id()?;
+                    let tid = conn.read_team()?;
+                    win2.emit("player-join", PlayerInfo{name,pid,tid})?;
                 },
                 3 => {
-                    let pid = conn.read_player_id().unwrap();
-                    let tid = conn.read_byte().unwrap();
-                    win2.emit("team-change", (pid, tid)).unwrap();
+                    let pid = conn.read_player_id()?;
+                    let tid = conn.read_team()?;
+                    win2.emit("team-change", (pid, tid))?;
                 },
                 4 => {
-                    win2.emit("player-leave", conn.read_byte().unwrap()).unwrap();
+                    win2.emit("player-leave", conn.read_player_id()?)?;
                 },
                 // not used for this client
-                5 => {let _ = conn.read_byte().unwrap();},
+                5 => {let _ = conn.read_byte()?;},
                 // not used for this client
                 6 => {
-                    for _ in 0..conn.read_byte().unwrap() {
+                    for _ in 0..conn.read_byte()? {
                         for _ in 0..4 {
-                            let _ = conn.read_u16().unwrap();
+                            let _ = conn.read_u16()?;
                         }
                     }
                 },
                 7 => {
-                    let w = conn.read_size().unwrap();
-                    let h = conn.read_size().unwrap();
-                    if conn.matches_version(0, 0, 1) {
-                        let _ = conn.read_size()?;
+                    let w = conn.read_size()?;
+                    let h = conn.read_size()?;
+                    if conn.matches_version(ProtVer(0, 0, 1)) {
+                        let _ = conn.read_byte()?;
                     }
                     let mut scores = [0u32; 6];
                     for i in 0..6 {
-                        scores[i] = conn.read_score().unwrap();
+                        scores[i] = conn.read_score()?;
                     }
                     let mut tiles = byte_buf((w as usize)*(h as usize)*2);
                     for i in 0..(tiles.len()/2) {
-                        let sp = conn.read_bsp().unwrap();
+                        let sp = conn.read_bsp()?;
                         tiles[i*2] = sp.0;
                         tiles[i*2+1] = sp.1;
                     }
-                    win2.emit("full-board", BoardInfo{w,h,tiles,scores}).unwrap();
+                    win2.emit("full-board", BoardInfo{w,h,tiles,scores})?;
                     gamestate = GameState::Midgame;
                 },
-                _ => {break;}
+                x => {println!("RUNLOOP INVALID PRELOOP COMMCODE: {}", x);break;}
             }
         } else if gamestate == GameState::Midgame {
             if commcode == 1 {
@@ -294,8 +266,8 @@ fn runloop(app: &AppHandle, mut conn: Sockets) -> TResult<()> {
                     *go = is_true(event.payload().unwrap());
                     cvar.notify_one();
                 });
-                let (movex, movey) = conn.read_move().unwrap();
-                let team = conn.read_team().unwrap();
+                let (movex, movey) = conn.read_move()?;
+                let team = conn.read_team()?;
                 win2.emit("player-move", MoveInfo{x:movex,y:movey,team})?;
                 while !*complete {
                     complete = cvar.wait(complete).unwrap();
@@ -311,7 +283,7 @@ fn runloop(app: &AppHandle, mut conn: Sockets) -> TResult<()> {
 
 pub fn entry(app: &mut tauri::App) -> TResult<()> {
     let handle = app.handle();
-    let hand2 = app.handle();
+    let hand2a = app.handle();
     thread::spawn(move || {
         let window = handle.get_window("main").unwrap();
         let (atx1, arx1): (Sender<String>, Receiver<String>) = channel();
@@ -324,18 +296,21 @@ pub fn entry(app: &mut tauri::App) -> TResult<()> {
         }
         arx1.recv().unwrap();
         println!("STARTED");
-        let win2 = handle.get_window("main").unwrap();
         window.listen("join-server", move |event|{
+            let hand2 = hand2a.app_handle();
+            let win2 = hand2.get_window("main").unwrap();
             // let sdat: usize = event.payload().unwrap().parse().unwrap();
-            let jdat: JoinData = serde_json::from_str(event.payload().unwrap()).unwrap();
-            match connect_server(&hand2, &jdat.cdat, jdat.name.clone()) {
-                Ok(s) => {
-                    let _ = runloop(&hand2, s);
-                },
-                Err(e) => {
-                    win2.emit("join-server-failed", format!("{}", e)).unwrap();
-                }
-            };
+            thread::spawn(move||{
+                let jdat: JoinData = serde_json::from_str(event.payload().unwrap()).unwrap();
+                match connect_server(&hand2, &jdat.cdat, jdat.name.clone()) {
+                    Ok(s) => {
+                        let _ = runloop(&hand2, s);
+                    },
+                    Err(e) => {
+                        win2.emit("join-server-failed", format!("{}", e)).unwrap();
+                    }
+                };
+            });
         });
     });
     Ok(())

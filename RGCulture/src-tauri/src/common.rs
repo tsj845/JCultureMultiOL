@@ -1,9 +1,22 @@
 // provides common data types, constants, and data
-
+pub use crate::payloads::*;
+pub use crate::protocol::{ProtVer,PROTVER_MATCHALL};
 use std::{alloc::Layout, fmt::{Debug, Display}};
 
 pub use serde::{Serialize, Deserialize};
 pub type TResult<T> = Result<T, Box<dyn std::error::Error>>;
+pub type TeamId = u8;
+pub type PlayerId = u16;
+pub type Dimension = u32;
+pub type PMove = (Dimension, Dimension);
+pub type TMove = (Dimension, Dimension, TeamId);
+
+#[macro_export]
+macro_rules! bytes {
+    ($content:tt) => {
+        &mut vec!$content[..]
+    };
+}
 
 pub trait BitField {
     fn get_bit(&self, bit: usize) -> bool;
@@ -95,40 +108,6 @@ impl<T: Debug> std::error::Error for GenErr<T> {}
 impl<T: Debug> GenErr<T> {
     pub fn new(src: T) -> Self{Self{src}}
     pub fn boxed(src: T) -> Box<Self> {Box::new(Self::new(src))}
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct ServerData {
-    pub has_password: bool,
-    pub name: String,
-    pub version: [u16; 3]
-}
-
-#[derive(Clone, Deserialize)]
-pub struct JoinData {
-    pub cdat: ConnData,
-    pub name: String
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ConnData {
-    addr: String,
-    port: u16
-}
-impl ConnData {
-    pub fn new(addr: String, port: u16) -> ConnData {
-        Self {addr,port}
-    }
-    pub fn to_str(&self) -> String {
-        format!("{}:{}", self.addr, self.port)
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct MoveUpdatePayload {
-    x: u32,
-    y: u32,
-    team: u8
 }
 
 // #[derive(Clone, Serialize, Deserialize, Debug)]
