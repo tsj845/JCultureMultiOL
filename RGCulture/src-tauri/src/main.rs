@@ -10,6 +10,8 @@ use std::{env::args, fs};
 use std::path::Path;
 
 use comm::entry;
+use common::{ConnData, ServerData, TResult};
+use rt::Connection;
 use tauri::Manager;
 
 #[tauri::command]
@@ -40,9 +42,14 @@ fn store_servers(servers: String) -> () {
     fs::write(SERVER_LIST_PATH, servers).unwrap();
 }
 
+#[tauri::command]
+fn get_server_protver(addr: ConnData) -> Result<ServerData, String> {
+    Connection::connect_data(&addr).map_err(|e| e.to_string())
+}
+
 fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![fetch_content, get_is_debug, fetch_servers, store_servers])
+    .invoke_handler(tauri::generate_handler![fetch_content, get_is_debug, fetch_servers, store_servers, get_server_protver])
     .setup(|app| {
         let h = app.handle();
         let win = app.get_window("main").unwrap();

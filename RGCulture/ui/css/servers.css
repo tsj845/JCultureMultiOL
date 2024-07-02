@@ -37,6 +37,15 @@
     width: 100%;
 }
 
+#server-list > .server-info.S--unavailable {
+    /* border: solid #888 2px; */
+    color: #888;
+}
+
+.server-info.S--unavailable * {
+    color: #888 !important;
+}
+
 #server-list > .server-info:not(:nth-child(1)) {
     border-top: 0px;
 }

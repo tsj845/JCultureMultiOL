@@ -1,6 +1,7 @@
 // provides common data types, constants, and data
 pub use crate::payloads::*;
 pub use crate::protocol::{ProtVer,PROTVER_MATCHALL};
+use std::error::Error;
 use std::{alloc::Layout, fmt::{Debug, Display}};
 
 pub use serde::{Serialize, Deserialize};
@@ -10,6 +11,8 @@ pub type PlayerId = u16;
 pub type Dimension = u32;
 pub type PMove = (Dimension, Dimension);
 pub type TMove = (Dimension, Dimension, TeamId);
+
+
 
 #[macro_export]
 macro_rules! bytes {
@@ -30,6 +33,26 @@ pub fn byte_buf(size: usize) -> Box<[u8]> {
         let buf: Box<[u8]> = Box::from_raw(raw_buf);
         return buf;
     };
+}
+
+#[derive(Debug)]
+pub struct VersionError {
+    ver: ProtVer,
+    reason: bool
+}
+impl Display for VersionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("Version {} too {}", self.ver, match self.reason{true=>"old".to_string(),false=>"young".to_string()}))
+    }
+}
+impl Error for VersionError {}
+impl VersionError {
+    pub fn new(ver: ProtVer, reason: bool) -> Self {
+        Self{ver, reason}
+    }
+    pub fn boxed(ver: ProtVer, reason: bool) -> Box<Self> {
+        Box::new(Self::new(ver, reason))
+    }
 }
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use std::{net::TcpStream, slice::{from_mut as slice_of_mut, from_ref as slice_of}};
+use std::{fmt::Display, net::TcpStream, slice::{from_mut as slice_of_mut, from_ref as slice_of}};
 
 use serde::Serialize;
 
@@ -12,6 +12,11 @@ const PVER_V011: ProtVer = ProtVer(0, 1, 1);
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct ProtVer(pub u16, pub u16, pub u16);
+impl Display for ProtVer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{}.{}.{}", self.0, self.1, self.2))
+    }
+}
 impl From<(u16, u16, u16)> for ProtVer {fn from(value: (u16, u16, u16)) -> Self {Self(value.0,value.1,value.2)}}
 impl PartialEq for ProtVer {
     fn eq(&self, other: &Self) -> bool {

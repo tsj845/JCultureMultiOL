@@ -1,7 +1,8 @@
 // receive/transmit using the JCulture Protocol
-use std::net::TcpStream;
+use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::net::Shutdown::Both;
 use std::ops::{BitAnd, BitAndAssign, BitOrAssign};
+use std::time::Duration;
 use crate::common::*;
 use crate::protocol::Protocol;
 use std::io;
@@ -156,7 +157,7 @@ impl Connection {
     }
     pub fn connect_data(conn_data: &ConnData) -> TResult<ServerData> {
     // pub fn connect_data(conn_data: &str) -> Result<ServerData, ()> {
-        let mut gd = match TcpStream::connect(conn_data.to_str()) {
+        let mut gd = match TcpStream::connect_timeout(&SocketAddr::new(conn_data.addr.parse().unwrap(), conn_data.port), Duration::from_secs(5)) {
         // let mut gd = match TcpStream::connect(conn_data) {
             Ok(s)=>s,
             Err(_) => {return Err(ConnError::boxed());}
