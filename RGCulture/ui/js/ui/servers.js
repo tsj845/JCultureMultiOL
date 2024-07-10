@@ -2,9 +2,14 @@
 const DOMServerList = document.getElementById("server-list");
 
 document.getElementById("sl-back-button").children[0].addEventListener("click", () => {setScreen(0);setActiveCard(null);store_servers();});
+document.getElementById("sl-refresh-button").children[0].addEventListener("click", () => {fetch_servers();});
 
 /**@type {HTMLDivElement} */
 const DOMServerControls = document.getElementById("server-controls");
+
+/**@type {SVGSVGElement[]} */
+// const serverSpecButtons = [DOMServerControls.children[0], DOMServerControls.children[1], DOMServerControls.children[2]];
+const serverSpecButtons = [DOMServerControls.children[1], DOMServerControls.children[2]];
 
 listen("join-server-failed", (ev)=>{console.log(ev.payload);});
 DOMServerControls.children[0].addEventListener("click", async () => {
@@ -198,6 +203,20 @@ function removeServerCard(card) {
 let currActiveCard = null;
 
 /**
+ * @param {boolean} active
+ * @returns {void}
+ */
+function setServerSpecButtonsActive(active) {
+    for (const button of serverSpecButtons) {
+        if (active) {
+            button.classList.remove("S--unavailable");
+        } else {
+            button.classList.add("S--unavailable");
+        }
+    }
+}
+
+/**
  * @param {ServerCardElement} card
  * @returns {void}
  */
@@ -208,8 +227,16 @@ function setActiveCard(card) {
     if (currActiveCard !== null) {
         currActiveCard.classList.remove("S--active");
     }
+    setServerSpecButtonsActive(card !== null);
     if (card !== null) {
+        if (card.classList.contains("S--unavailable")) {
+            DOMServerControls.children[0].classList.add("S--unavailable");
+        } else {
+            DOMServerControls.children[0].classList.remove("S--unavailable");
+        }
         card.classList.add("S--active");
+    } else {
+        DOMServerControls.children[0].classList.add("S--unavailable");
     }
     currActiveCard = card;
 }

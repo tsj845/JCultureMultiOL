@@ -525,7 +525,7 @@ public class Host {
             sOut.write(0);
             sOut.write(0);
             sOut.write(0);
-            sOut.write(1);
+            sOut.write(2);
             sOut.write(0);
             sOut.write(1);
             sock.close();

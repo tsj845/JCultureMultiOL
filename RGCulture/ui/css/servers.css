@@ -13,10 +13,21 @@
     height: 1.5em;
     /* left: 0px; */
     /* top: 0px; */
+    display: flex;
+    justify-content: space-between;
 }
 #servers > #sl-bb-cont > svg {
     aspect-ratio: 38/21;
     height: inherit;
+}
+
+#sl-bb-cont > #sl-refresh-button {
+    --title-hover-pfill: #999;
+    --title-active-pfill: #888;
+}
+
+#sl-bb-cont > #sl-refresh-button g path {
+    stroke: none !important;
 }
 
 #servers > #server-list {
@@ -96,6 +107,14 @@
 
 #server-controls > .sl-ctrl-button {
     height: 30px;
+}
+
+svg.sl-ctrl-button.S--unavailable g path {
+    fill: #222 !important;
+    stroke: #aaa !important;
+}
+svg.sl-ctrl-button.S--unavailable g text {
+    fill: #aaa !important;
 }
 
 svg.sl-ctrl-button g:hover path {
