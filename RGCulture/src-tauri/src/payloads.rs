@@ -75,3 +75,9 @@ pub struct MoveUpdatePayload {
     pub y: Dimension,
     pub team: TeamId
 }
+
+#[derive(Clone, Serialize)]
+pub struct JoinResultPayload {
+    pub ok: bool,
+    pub msg: String
+}

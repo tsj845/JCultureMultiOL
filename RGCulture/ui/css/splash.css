@@ -22,14 +22,14 @@ svg.title-button text {
     font-family: monospace;
 }
 svg.title-button g:hover path {
-    fill: #333;
+    fill: var(--title-hover-pfill, #333);
     stroke: #bbb;
 }
 svg.title-button g:hover text {
     fill: #bbb;
 }
 svg.title-button g:active path {
-    fill: #222;
+    fill: var(--title-active-pfill, #222);
     stroke: #bbb;
 }
 svg.title-button g:active text {

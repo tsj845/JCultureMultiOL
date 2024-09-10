@@ -62,6 +62,9 @@ fn confirm_server(app: &AppHandle, cdat: &ConnData) -> TResult<ProtVer> {
     let window = app.get_window("main").unwrap();
     let sdat = Connection::connect_data(cdat)?;
     let ver = sdat.version.clone();
+    if ver <= ProtVer(0, 1, 1) {
+        return Err(VersionError::boxed(ProtVer(0,1,1), true));
+    }
     println!("{:?}", &sdat);
     let (cv1, cv2);
     cvarpair!(cv1, cv2, false);
@@ -162,7 +165,7 @@ fn runloop(app: &AppHandle, mut conn: Connection) -> TResult<()> {
     println!("RUNLOOP ENTRY");
     let window = app.get_window("main").unwrap();
     let win2 = app.get_window("main").unwrap();
-    window.emit("join-server-ok", "")?;
+    window.emit("join-server-result", JoinResultPayload{ok:true,msg:String::new()})?;
     let mut gamestate = GameState::Pregame;
     loop {
         let commcode: u8 = conn.read_byte()?;
@@ -307,7 +310,7 @@ pub fn entry(app: &mut tauri::App) -> TResult<()> {
                         let _ = runloop(&hand2, s);
                     },
                     Err(e) => {
-                        win2.emit("join-server-failed", format!("{}", e)).unwrap();
+                        win2.emit("join-server-result", JoinResultPayload{ok:false, msg:format!("{}", e)}).unwrap();
                     }
                 };
             });

@@ -22,6 +22,10 @@ function frozen(o) {
  * @type {{event:String,payload:Object}}
  */
 /**
+ * @typedef TauriUnlisten
+ * @type {()=>void}
+ */
+/**
  * @param {String} name
  * @param {Object} data
  * @returns {Promise<Object>}
@@ -36,13 +40,13 @@ const emit = (name,data)=>{window.__TAURI__.event.emit(name,data);};
 /**
  * @param {String} name
  * @param {(event:TauriEvent)=>void} callback
- * @returns {Promise<()=>void>}
+ * @returns {Promise<TauriUnlisten>}
  */
 const listen = (name,callback)=>{return window.__TAURI__.event.listen(name,callback);};
 /**
  * @param {String} name
  * @param {(event:TauriEvent)=>void} callback
- * @returns {void}
+ * @returns {Promise<TauriUnlisten>}
  */
 const once = (name,callback)=>{window.__TAURI__.event.once(name,callback);};
 

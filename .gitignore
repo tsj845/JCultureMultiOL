@@ -1,2 +1,3 @@
 *.class
 *.tset
+rgc_local_data/*
