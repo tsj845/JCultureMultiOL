@@ -99,6 +99,13 @@ public class Host {
         }
     }
     private static void runloop() throws Exception {
+        int ticker = 0;
+        for (Player p : players.values()) {
+            OutputStream o = p.conn.s1O;
+            for (int i = 0; i < UR_init; i ++) {
+                o.write(2);
+            }
+        }
         while (true) {
             for (Player p : players.values()) {
                 // SinkChannel snk = p.pipe.sink();
@@ -122,6 +129,14 @@ public class Host {
                     pOut.write(1);
                     break;
                 } else {
+                    if (UR_enable) {
+                        if (player.usurps > 0) {
+                            player.usurps --;
+                            player.used = true;
+                            pOut.write(2);
+                            break;
+                        }
+                    }
                     System.out.println(player.team.id);
                     System.out.println(game.board.board[y][x].team);
                     pOut.write(0);
@@ -135,7 +150,8 @@ public class Host {
             // byte[] buf2 = new byte[3];
             // psrc.read(ByteBuffer.wrap(buf2));
             // game.move(buf2[0], buf2[1]);
-            game.move(x, y);
+            boolean round = game.move(x, y);
+            boolean addOne = ticker == UR_interval;
             // System.out.println("RUNREAD:");
             // System.out.println(buf2);
             for (Player p : players.values()) {
@@ -146,7 +162,27 @@ public class Host {
                 sOut.write(x);
                 sOut.write(y);
                 sOut.write(player.team.id);
+                if (addOne) {
+                    // System.out.printf("ADDING Usurps to id: %d\n", p.id);
+                    if (!player.used) {
+                        if (p.usurps < UR_limit) {
+                            int delta = Math.max(UR_amount, UR_limit - p.usurps);
+                            p.usurps += delta;
+                            // System.out.printf("added, usurps = %d\n", p.usurps);
+                            for (int i = 0; i < delta; i ++) {
+                                sOut.write(2);
+                            }
+                        } else {
+                            // System.out.println("no regen");
+                        }
+                    } else {
+                        // System.out.println("ignoring player");
+                    }
+                    player.used = false;
+                }
             }
+            ticker %= UR_interval;
+            ticker += round ? 1 : 0;
             if (game.board.checkWinner() != -2) {
                 for (Player p : players.values()) {
                     SinkChannel snk = p.pipe.sink();
@@ -365,6 +401,26 @@ public class Host {
                     }
                 }
             }
+        } else if (line.equalsIgnoreCase("setbot")) {
+            clcommand("list");
+            int tid;
+            while (true) {
+                try {
+                    System.out.print("Enter team id: ");
+                    String l = sc.nextLine();
+                    if (l.equalsIgnoreCase("cancel")) return;
+                    tid = Integer.parseInt(l);
+                    if (tid < 0 || tid > 5) {
+                        System.out.println("out of range");
+                        continue;
+                    }
+                    break;
+                } catch (Exception E) {
+                    System.out.println("malformed");
+                }
+            }
+            Team t = Teams.teams[tid];
+            t.botteam = true;
         } else if (line.equalsIgnoreCase("setteam")) {
             clcommand("list");
             int pid;
@@ -463,9 +519,10 @@ public class Host {
                 itcp = players.size();
                 Teams.reset();
                 for (Player p : players.values()) {
+                    p.usurps = UR_init;
                     Teams.teams[p.team.id].pcount ++;
                 }
-                game = new Game(itcw, itch);
+                game = new Game(itcw, itch, BR_interval);
                 countdown = new CountDownLatch(itcp);
                 for (Player p : players.values()) {
                     p.pipe.sink().write(ByteBuffer.wrap(new byte[]{1}));
@@ -729,6 +786,13 @@ public class Host {
                         sOut.write(1);
                         break;
                     } else {
+                        if (UR_enable) {
+                            if (player.usurps > 0) {
+                                player.usurps --;
+                                sOut.write(1);
+                                break;
+                            }
+                        }
                         System.out.println(player.team.id);
                         System.out.println(game.board.board[y][x].team);
                         sOut.write(0);
@@ -806,6 +870,38 @@ public class Host {
         servingThread.start();
         cli();
     }
+    private static void updateEnabledOpts() throws Exception {
+        MenuFrame mf = MENU.topFrame.resolveEntry("game rules").getValue().getGroup().resolveEntry("usurp").getValue().getGroup();
+        boolean val = !mf.resolveEntry("enabled").getValue().getToggleState();
+        mf.resolveEntry("3").getValue().setDisabled(val);
+        mf.resolveEntry("4").getValue().setDisabled(val);
+        mf.resolveEntry("5").getValue().setDisabled(val);
+        mf.resolveEntry("6").getValue().setDisabled(val);
+    }
+    private static void presetUR(int pre) throws Exception {
+        MenuFrame mf = MENU.topFrame.resolveEntry("game rules").getValue().getGroup().resolveEntry("usurp").getValue().getGroup();
+        mf.resolveEntry("enabled").getValue().setToggleState(true);
+        UR_enable = true;
+        updateEnabledOpts();
+        ItemData init = mf.resolveEntry("3").getValue();
+        ItemData limit = mf.resolveEntry("4").getValue();
+        ItemData inter = mf.resolveEntry("5").getValue();
+        ItemData amount = mf.resolveEntry("6").getValue();
+        if (pre == 0) {
+            UR_limit = 0;
+            UR_interval = 1;
+            UR_amount = 1;
+        } else if (pre == 1) {
+            UR_init = 1;
+            UR_limit = 1;
+            UR_interval = 1;
+            UR_amount = 1;
+        }
+        init.setNumber(UR_init);
+        limit.setNumber(UR_limit);
+        inter.setNumber(UR_interval);
+        amount.setNumber(UR_amount);
+    }
     private static void options() throws Exception {
         MENU.setState(Menu.TOP);
         while (true) {
@@ -817,21 +913,65 @@ public class Host {
                 return;
             }
             ItemData itemd = (ItemData)mid.data;
-            if (itemd.iid == GRULES_SERVER) {
-                GR_server = itemd.getToggleState();
+            switch (itemd.iid) {
+                case GRULES_SERVER:GR_server = itemd.getToggleState();break;
+                case GRUR_ENABLED:UR_enable = itemd.getToggleState();updateEnabledOpts();break;
+                case GRUR_LIMIT:UR_limit = itemd.getNumber();break;
+                case GRUR_INIT:UR_init = itemd.getNumber();break;
+                case GRUR_INTERVAL:UR_interval = itemd.getNumber();break;
+                case URP_PERGAME:presetUR(0);break;
+                case URP_ONCEGAP:presetUR(1);break;
+                case BR_ENABLED:Teams.teams[0].botteam = itemd.getToggleState();break;
+                case BR_TICKRATE:BR_interval = itemd.getNumber();break;
+                case UR_AMOUNT:UR_amount = itemd.getNumber();break;
             }
         }
     }
-    private static boolean GR_server = false;
+    private static boolean GR_server = false, UR_enable = false, BR_enable = false;
+    private static int UR_init = 0, UR_limit = 5, UR_interval = 1, BR_interval = 1, UR_amount = 1;
     private static final Menu MENU;
     private static final int
-    GRULES_SERVER = 0;
+    GRULES_SERVER = 0,
+    GRUR_ENABLED = 1,
+    GRUR_LIMIT = 2,
+    GRUR_INIT = 3,
+    GRUR_INTERVAL = 4,
+    URP_PERGAME = 5,
+    URP_ONCEGAP = 6,
+    BR_ENABLED = 7,
+    BR_TICKRATE = 8,
+    UR_AMOUNT = 9;
     static {
         MenuFrame top = new MenuFrame("Host Options");
         {
             MenuFrame rules = new MenuFrame("Game Rules");
+            rules.setAcceptNumbers(true);
             top.addItem("game rules", ItemData.Group(rules));
             rules.addItem("server mode", ItemData.Toggle(GR_server).withIID(GRULES_SERVER));
+            {
+                MenuFrame bots = new MenuFrame("Bot Rules");
+                bots.setAcceptNumbers(true);
+                rules.addItem("bots", ItemData.Group(bots));
+                bots.addItem("enabled", ItemData.Toggle(BR_enable).withIID(BR_ENABLED));
+                bots.addItem("interval", ItemData.Number(BR_interval, 1, null).withIID(BR_TICKRATE).asDisabled(BR_enable));
+            }
+            {
+                MenuFrame usurp = new MenuFrame("Usurp Rules");
+                usurp.setAcceptNumbers(true);
+                rules.addItem("usurp", ItemData.Group(usurp));
+                usurp.addItem("enabled", ItemData.Toggle(UR_enable).withIID(GRUR_ENABLED));
+                usurp.addItem("initial usurps", ItemData.Number(UR_init, 0, null).withIID(GRUR_INIT).asDisabled(!UR_enable));
+                usurp.addItem("regen limit", ItemData.Number(UR_limit, 0, null).withIID(GRUR_LIMIT).asDisabled(!UR_enable));
+                usurp.addItem("regen interval", ItemData.Number(UR_interval, 1, null).withIID(GRUR_INTERVAL).asDisabled(!UR_enable));
+                usurp.addItem("regen amount", ItemData.Number(UR_amount, 1, null).withIID(UR_AMOUNT).asDisabled(!UR_enable));
+                {
+                    MenuFrame presets = new MenuFrame("Usurp Presets");
+                    presets.setAcceptNumbers(true);
+                    usurp.addItem("presets", ItemData.Group(presets));
+                    presets.addItem("Per Game", ItemData.Action().withIID(URP_PERGAME));
+                    presets.addItem("Once Per Turn With Gap", ItemData.Action().withIID(URP_ONCEGAP));
+                }
+            }
         }
         MENU = new Menu(top);
     }

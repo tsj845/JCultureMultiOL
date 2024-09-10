@@ -6,7 +6,7 @@ import JCRoot.game.Color;
 
 public class Menu {
     public static final int TOP = 0;
-    private final MenuFrame topFrame;
+    public final MenuFrame topFrame;
     private MenuFrame cframe;
     public Menu(MenuFrame top) {
         topFrame = top;
@@ -38,8 +38,8 @@ public class Menu {
         MenuFrame top = new MenuFrame("TEST");
         root.addItem("TEST", ItemData.Group(top));
         top.addItem("tDon", ItemData.Toggle(true));
-        top.addItem("tDoff", ItemData.Toggle(false));
-        top.addItem("number", ItemData.Number(0));
+        top.addItem("tDoff", ItemData.Toggle(false).withIID(0));
+        top.addItem("number", ItemData.Number(0).withIID(1));
         top.addItem("fake", ItemData.Fake());
         top.addItem("group", ItemData.Group(top));
         top.addItem("action", ItemData.Action());
@@ -50,9 +50,17 @@ public class Menu {
             return;
         }
         Scanner sc = new Scanner(System.in);
+        m.setState(TOP);
         while (true) {
             MInputData mid = m.run(sc);
             if (mid.isEXIT()) break;
+            if (mid.isNULL()) continue;
+            ItemData itd = (ItemData)mid.data;
+            switch (itd.iid) {
+                case 0:
+                    top.resolveEntry("number").getValue().setDisabled(itd.getToggleState());
+                    break;
+            }
         }
         sc.close();
     }

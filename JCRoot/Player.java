@@ -11,6 +11,8 @@ public class Player {
     public Team team;
     public Connection conn;
     public Pipe pipe, pipe2;
+    public int usurps = 0;
+    public boolean used = false;
     public Player(int id, Team team, String name) {
         this.id = id;
         this.team = team;

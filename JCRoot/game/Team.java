@@ -6,6 +6,7 @@ public class Team {
     public final String name;
     public int pcount = 0;
     public int tscore = 0;
+    public boolean botteam = false;
     public Team(int id, Color color, String name) {
         this.id = id;
         this.color = color;

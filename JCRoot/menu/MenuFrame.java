@@ -56,7 +56,7 @@ public class MenuFrame {
         items.put(name, data);
         return this;
     }
-    private Entry<String, ItemData> resolveEntry(String input) {
+    public Entry<String, ItemData> resolveEntry(String input) {
         if (input.length() == 0) return null;
         if (acceptNumbers && input.matches("[0-9]+")) {
             int index = Integer.parseInt(input);
@@ -82,6 +82,9 @@ public class MenuFrame {
         Entry<String, ItemData> entry = resolveEntry(line);
         if (entry == null) return MenuReturn.MPROBLEM;
         ItemData val = entry.getValue();
+        if (val.isDisabled()) {
+            return MenuReturn.MPASSIVE;
+        }
         switch (val.itemType) {
             case Fake:return MenuReturn.MPASSIVE;
             case Toggle:return new MenuReturn(MenuReturn.ACTION, val);
@@ -96,6 +99,29 @@ public class MenuFrame {
             }
         }
         return MenuReturn.MPROBLEM;
+    }
+    private void updateNumber(Scanner sc, MenuReturn mr) {
+        ItemData itd = (ItemData)mr.data;
+        while (true) {
+            System.out.println(this);
+            System.out.printf("Enter %sn%s: ", (itd.getMin() != null) ? String.format("%d <= ", itd.getMin()) : "", (itd.getMax() != null) ? String.format(" <= %d", itd.getMax()) : "");
+            String line = sc.nextLine();
+            if (line.equalsIgnoreCase("cancel")) {
+                break;
+            }
+            int n;
+            try {
+                n = Integer.parseInt(line);
+            } catch (Exception E) {
+                System.out.println("malformed");
+                continue;
+            }
+            if (itd.checkNumRange(n)) {
+                itd.setNumber(n);
+                break;
+            }
+            continue;
+        }
     }
     public MenuReturn run(Scanner sc) {
         while (true) {
@@ -115,6 +141,7 @@ public class MenuFrame {
                     itemd.toggleState();
                 } else if (itemd.itemType == ItemType.Number) {
                     // to do
+                    updateNumber(sc, mr);
                 }
             }
             return mr;
@@ -144,6 +171,7 @@ public class MenuFrame {
                 case Number:break;
                 case Action:break;
             }
+            color = MenuFrame.DISABLED;
         }
         key = String.format("%s%s%s", color, key, MenuFrame.DEFAULT);
         switch (value.itemType) {

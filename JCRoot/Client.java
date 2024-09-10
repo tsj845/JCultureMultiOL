@@ -13,6 +13,7 @@ import JCRoot.game.*;
 import JCRoot.menu.*;
 
 public class Client {
+    private static int usurps = 0;
     private static int pnum = -1;
     private static TreeMap<Integer, Player> players = new TreeMap<>();
     private static Scanner sc = new Scanner(System.in);
@@ -23,6 +24,8 @@ public class Client {
     private static OutputStream sOut, s2Out;
     private static int gamestate = 0;
     private static boolean exiting = false, ready = true, spectator_mode = false, host_waiting = false;
+    private static boolean bot = false;
+    private static int botx = 0, boty = 0;
     private static int needInput = 0;
     private static LinkedBlockingQueue<String> inputs = new LinkedBlockingQueue<>();
     private static final Object EXIT_LOCK = new Object(), READY_LOCK = new Object(), WAIT_LOCK = new Object();
@@ -295,40 +298,60 @@ public class Client {
                 gamestate = 0;
                 return;
             }
-            int ccode = read(sIn);
-            if (ccode == 1) {
-                int row;
-                int col;
-                while (true) {
-                    System.out.printf("%sEnter Move:%s\n", players.get(pnum).team.color, Color.DEFAULT);
-                    needInput ++;
-                    String l = inputs.take().toUpperCase();
-                    if (l.length() == 0) {
-                        System.out.println("malformed");
-                        continue;
-                    }
-                    col = ((int)l.charAt(0)) - ((int)'A');
-                    if (col < 0 || col >= board.w) {
-                        System.out.println("malformed");
-                        continue;
-                    }
-                    if (l.substring(1).matches("^[0-9]{1,2}$")) {
-                        row = Integer.parseInt(l.substring(1))-1;
-                    } else {
-                        System.out.println("malformed");
-                        continue;
-                    }
-                    if (row < 0 || row >= board.h) {
-                        System.out.println("malformed");
-                        continue;
-                    }
-                    sOut.write(col);
-                    sOut.write(row);
-                    if (read(sIn) == 0) {
-                        System.out.println("invalid");
-                        continue;
-                    }
+            int ccode;
+            while (true) {
+                ccode = read(sIn);
+                if (ccode == 2) {
+                    usurps ++;
+                } else {
                     break;
+                }
+            }
+            if (ccode == 1) {
+                if (bot) {
+                    sOut.write(botx);
+                    sOut.write(boty);
+                    if (read(sIn) == 0) {
+                        throw new Exception("Meanies ruined it");
+                    }
+                } else {
+                    int row;
+                    int col;
+                    while (true) {
+                        System.out.printf("Usurps Left: %d\n", usurps);
+                        System.out.printf("%sEnter Move:%s\n", players.get(pnum).team.color, Color.DEFAULT);
+                        needInput ++;
+                        String l = inputs.take().toUpperCase();
+                        if (l.length() == 0) {
+                            System.out.println("malformed");
+                            continue;
+                        }
+                        col = ((int)l.charAt(0)) - ((int)'A');
+                        if (col < 0 || col >= board.w) {
+                            System.out.println("malformed");
+                            continue;
+                        }
+                        if (l.substring(1).matches("^[0-9]{1,2}$")) {
+                            row = Integer.parseInt(l.substring(1))-1;
+                        } else {
+                            System.out.println("malformed");
+                            continue;
+                        }
+                        if (row < 0 || row >= board.h) {
+                            System.out.println("malformed");
+                            continue;
+                        }
+                        sOut.write(col);
+                        sOut.write(row);
+                        int rc = read(sIn);
+                        if (rc == 0) {
+                            System.out.println("invalid");
+                            continue;
+                        } else if (rc == 2) {
+                            usurps --;
+                        }
+                        break;
+                    }
                 }
             }
             int col = read(sIn);
@@ -351,6 +374,11 @@ public class Client {
     }
     public static void main(String[] args) throws Exception {
         Color.start();
+        if (args.length > 2) {
+            bot = true;
+            botx = Integer.parseInt(args[2]);
+            boty = Integer.parseInt(args[3]);
+        }
         start(InetAddress.getByName(args[0]), Integer.parseInt(args[1]));
     }
     private static final Menu MENU;

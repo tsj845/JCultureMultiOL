@@ -51,6 +51,18 @@ public class ItemData {
         if (nummax != null && test > nummax) return false;
         return true;
     }
+    public Integer getMin() {
+        if (itemType != ItemType.Number) throw new IllegalStateException("cannot get minimum value of non-numeric option");
+        return nummin;
+    }
+    public Integer getMax() {
+        if (itemType != ItemType.Number) throw new IllegalStateException("cannot get maximum value of non-numeric option");
+        return nummax;
+    }
+    public void setNumber(int value) {
+        if (itemType != ItemType.Number) throw new IllegalStateException("cannot set numeric value of non-numeric option");
+        numvalue = value;
+    }
     public int getNumber() {
         if (itemType != ItemType.Number) throw new IllegalStateException("cannot get numeric value of non-numeric option");
         return numvalue;
@@ -77,6 +89,10 @@ public class ItemData {
     }
     public void setDisabled(boolean disabled) {
         this.disabled = disabled;
+    }
+    public ItemData asDisabled(boolean disabled) {
+        this.disabled = disabled;
+        return this;
     }
     protected void setName(String name) {
         this.name = name;
