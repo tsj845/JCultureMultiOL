@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
@@ -185,8 +186,10 @@ public class Client {
             }
             System.out.print("Enter nickname: ");
             String clname = sc.nextLine();
-            sOut.write(clname.length());
-            sOut.write(clname.getBytes());
+            byte[] bytes = clname.getBytes(StandardCharsets.US_ASCII);
+            sOut.write(bytes.length);
+            sOut.write(bytes);
+            clname = new String(bytes, StandardCharsets.US_ASCII);
             pnum = read(sIn);
             int teamid = read(sIn);
             // Team team = new Team(teamid, new Color(teamid), clname);
@@ -242,7 +245,7 @@ public class Client {
             if (commcode == 2) {
                 byte[] b = new byte[read(sIn)];
                 read(sIn, b);
-                String otname = new String(b);
+                String otname = new String(b, StandardCharsets.US_ASCII);
                 int pid = read(sIn);
                 int tid = read(sIn);
                 // Team team = new Team(tid, new Color(tid), otname);

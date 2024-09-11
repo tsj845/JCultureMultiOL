@@ -9,6 +9,7 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Pipe.SinkChannel;
 import java.nio.channels.Pipe.SourceChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Scanner;
@@ -99,7 +100,7 @@ public class Host {
         }
     }
     private static void runloop() throws Exception {
-        int ticker = 0;
+        int ticker = 1;
         for (Player p : players.values()) {
             OutputStream o = p.conn.s1O;
             for (int i = 0; i < UR_init; i ++) {
@@ -151,7 +152,6 @@ public class Host {
             // psrc.read(ByteBuffer.wrap(buf2));
             // game.move(buf2[0], buf2[1]);
             boolean round = game.move(x, y);
-            boolean addOne = ticker == UR_interval;
             // System.out.println("RUNREAD:");
             // System.out.println(buf2);
             for (Player p : players.values()) {
@@ -162,27 +162,31 @@ public class Host {
                 sOut.write(x);
                 sOut.write(y);
                 sOut.write(player.team.id);
-                if (addOne) {
-                    // System.out.printf("ADDING Usurps to id: %d\n", p.id);
-                    if (!player.used) {
-                        if (p.usurps < UR_limit) {
-                            int delta = Math.max(UR_amount, UR_limit - p.usurps);
-                            p.usurps += delta;
-                            // System.out.printf("added, usurps = %d\n", p.usurps);
-                            for (int i = 0; i < delta; i ++) {
-                                sOut.write(2);
+            }
+            if (round) {
+                ticker %= UR_interval;
+                ticker ++;
+                if (ticker == UR_interval) {
+                    for (Player p : players.values()) {
+                        System.out.printf("ADDING Usurps to id: %d\n", p.id);
+                        if (!player.used) {
+                            if (p.usurps < UR_limit) {
+                                int delta = Math.min(UR_amount, UR_limit - p.usurps);
+                                p.usurps += delta;
+                                System.out.printf("added, usurps = %d\n", p.usurps);
+                                for (int i = 0; i < delta; i ++) {
+                                    p.conn.s1O.write(2);
+                                }
+                            } else {
+                                System.out.println("no regen");
                             }
                         } else {
-                            // System.out.println("no regen");
+                            System.out.println("ignoring player");
                         }
-                    } else {
-                        // System.out.println("ignoring player");
+                        player.used = false;
                     }
-                    player.used = false;
                 }
             }
-            ticker %= UR_interval;
-            ticker += round ? 1 : 0;
             if (game.board.checkWinner() != -2) {
                 for (Player p : players.values()) {
                     SinkChannel snk = p.pipe.sink();
@@ -649,7 +653,7 @@ public class Host {
             }
             byte[] bb = new byte[read(sIn)];
             read(sIn, bb);
-            String cliname = new String(bb);
+            String cliname = new String(bb, StandardCharsets.US_ASCII);
             // Color cc;
             int id = sid%256;
             // synchronized(Teams.teams) {
@@ -676,8 +680,8 @@ public class Host {
                 Socket s = p.conn.s1;
                 OutputStream pOut = s.getOutputStream();
                 pOut.write(0x02);
-                pOut.write(player.name.length());
-                pOut.write(player.name.getBytes());
+                pOut.write(player.name.getBytes(StandardCharsets.US_ASCII).length);
+                pOut.write(player.name.getBytes(StandardCharsets.US_ASCII));
                 pOut.write(player.id);
                 pOut.write(player.team.id);
                 sOut.write(0x02);
